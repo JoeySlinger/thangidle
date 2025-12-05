@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Thang Idle</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f0f12;
+            --panel-bg: #1a1a20;
+            --border-gold: #c5a059;
+            --border-highlight: #ffd700;
+            --text-main: #e0e0e0;
+            --dien-gold: #ffc107;
+            --lune-blue: #00e5ff;
+            --text-green: #4caf50;
+        }
+
+        body {
+            background: var(--bg-dark);
+            background-image: radial-gradient(circle at center, #1f1f25 0%, #000 100%);
+            color: var(--text-main);
+            font-family: 'Lato', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            user-select: none;
+        }
+
+        h1, h2, h3, h4, .rpg-font { font-family: 'Cinzel', serif; color: var(--border-gold); text-transform: uppercase; letter-spacing: 1px; }
+
+        /* START OVERLAY */
+        #start-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.98); 
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: opacity 0.5s;
+        }
+        .start-btn {
+            display: inline-block;
+            border: 2px solid var(--border-gold);
+            background: rgba(0,0,0,0.5);
+            color: var(--border-gold);
+            padding: 20px 50px;
+            font-size: 24px;
+            font-family: 'Cinzel', serif;
+            box-shadow: 0 0 25px var(--border-gold);
+            cursor: pointer;
+            transition: 0.2s;
+            text-shadow: 0 0 5px var(--border-gold);
+            margin-top: 20px;
+            position: relative;
+            z-index: 10001;
+            pointer-events: auto;
+        }
+        .start-btn:hover { background: var(--border-gold); color: black; box-shadow: 0 0 40px var(--border-gold); }
+
+        /* HEADER */
+        #header {
+            background: linear-gradient(to bottom, #2a2a30, #111);
+            border-bottom: 3px solid var(--border-gold);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+        
+        .currency-box { display: flex; gap: 20px; font-weight: bold; font-size: 1.1em; }
+        .currency-item { display: flex; align-items: center; gap: 5px; }
+        .icon-coin { color: var(--dien-gold); filter: drop-shadow(0 0 3px gold); }
+        .icon-gem { color: var(--lune-blue); filter: drop-shadow(0 0 5px cyan); }
+        
+        .header-controls { display: flex; gap: 15px; align-items: center; }
+        .icon-btn { background: none; border: 1px solid #555; color: #888; border-radius: 4px; cursor: pointer; padding: 5px; }
+        .icon-btn.active { color: var(--border-highlight); border-color: var(--border-highlight); box-shadow: 0 0 8px var(--border-highlight); }
+
+        /* XP BAR & COUNTER */
+        #xp-container { width: 100%; height: 18px; background: #000; border-bottom: 1px solid #333; position: relative; }
+        #xp-bar { height: 100%; background: linear-gradient(90deg, #4caf50, #8bc34a); width: 0%; transition: width 0.3s; box-shadow: 0 0 10px #4caf50; }
+        #xp-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: white; text-shadow: 0 0 3px black, 0 0 3px black; font-weight: bold; z-index: 2; }
+
+        /* MAIN VIEWPORT */
+        #main-view { flex: 1; overflow-y: auto; position: relative; padding-bottom: 80px; background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjMWEyYTMyIi8+CjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiMyMzIzMmEiLz4KPC9zdmc+'); }
+        .tab-content { display: none; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* GRID */
+        #grid-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 20px; }
+        #grid-container {
+            display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px;
+            width: min(90vw, 60vh); aspect-ratio: 1; background: rgba(0,0,0,0.5);
+            padding: 8px; border: 4px solid #444; border-image: linear-gradient(to bottom, #666, #222) 1;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8); touch-action: none; 
+        }
+        .tile { position: relative; width: 100%; height: 100%; background: #151515; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; transition: transform 0.2s, opacity 0.2s; }
+        .tile img { width: 85%; height: 85%; object-fit: cover; border-radius: 4px; transition: 0.2s; }
+        .npc-gem { position: absolute; top: -2px; right: -2px; width: 25%; height: 25%; z-index: 2; filter: drop-shadow(0 0 2px black); }
+        .npc-0 img { border: 2px solid #ff4444; box-shadow: 0 0 5px #ff4444; }
+        .npc-1 img { border: 2px solid #4488ff; box-shadow: 0 0 5px #4488ff; }
+        .npc-2 img { border: 2px solid #44ff44; box-shadow: 0 0 5px #44ff44; }
+        .npc-3 img { border: 2px solid #aa44ff; box-shadow: 0 0 5px #aa44ff; }
+        .npc-4 img { border: 2px solid #ffaa44; box-shadow: 0 0 5px #ffaa44; }
+        .npc-5 img { border: 2px solid #44ffff; box-shadow: 0 0 5px #44ffff; }
+        .npc-6 img { border: 2px solid #ffff44; box-shadow: 0 0 5px #ffff44; }
+        .npc-7 img { border: 2px solid #ff44aa; box-shadow: 0 0 5px #ff44aa; }
+        .tile.selected { background: #333; }
+        .tile.selected img { transform: scale(1.1); box-shadow: 0 0 15px white; border-color: white; }
+        .tile.hint img { animation: pulse 1s infinite; border-color: white; box-shadow: 0 0 15px white; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+        /* KI PANEL */
+        #ki-panel { width: min(90vw, 60vh); margin-top: 15px; background: linear-gradient(to right, #1a1a20, #25252e); padding: 15px; border: 1px solid #444; border-left: 4px solid var(--border-gold); box-shadow: 0 5px 10px rgba(0,0,0,0.5); }
+        .ki-group { margin-bottom: 12px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        .ki-group:last-child { border-bottom: none; margin-bottom: 0; }
+        .ki-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .ki-title { font-size: 14px; font-weight: bold; color: var(--border-gold); display: flex; align-items: center; gap: 5px; }
+        .ki-desc { font-size: 10px; color: #888; margin-left: 5px; font-style: italic; }
+        .ki-value { font-size: 12px; color: var(--lune-blue); font-weight: bold; }
+        .ki-controls { display: flex; align-items: center; }
+        .ki-track { flex: 1; height: 10px; background: #000; border: 1px solid #444; margin: 0 10px; position: relative; border-radius: 4px; overflow: hidden; }
+        .ki-fill { height: 100%; width: 0%; transition: width 0.3s; box-shadow: 0 0 10px currentColor; }
+        .btn-mini { width: 28px; height: 28px; background: #2a2a30; border: 1px solid #555; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-weight: bold; }
+        .btn-mini:hover { background: #444; border-color: var(--border-highlight); }
+
+        /* CARDS */
+        .rpg-card { background: var(--panel-bg); border: 1px solid #444; margin-bottom: 12px; padding: 12px; display: flex; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); position: relative; overflow: hidden; }
+        .rpg-card::before { content:''; position: absolute; top:0; left:0; width: 4px; height: 100%; background: #444; }
+        .rpg-card.unlocked::before { background: var(--border-gold); box-shadow: 0 0 10px var(--border-gold); }
+        .item-icon { width: 60px; height: 60px; background: #000; border: 2px solid #555; margin-right: 15px; object-fit: cover; }
+        .item-icon.active { border-color: var(--border-gold); }
+
+        .rpg-btn { background: linear-gradient(to bottom, #d4af37, #a67c00); color: #1a0000; border: 1px solid #ffe082; padding: 8px 12px; font-family: 'Cinzel', serif; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.5); text-shadow: 0 1px 0 rgba(255,255,255,0.4); font-size: 12px; margin-left: 5px; }
+        .rpg-btn:hover { filter: brightness(1.2); }
+        .rpg-btn:disabled { background: #333; color: #777; border-color: #555; cursor: not-allowed; filter: grayscale(100%); box-shadow: none; text-shadow: none; }
+        .btn-col { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
+
+        /* WORLD UI */
+        .world-section { margin-bottom: 30px; }
+        .world-header { font-size: 18px; color: var(--border-gold); border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 15px; font-family: 'Cinzel', serif; }
+        .time-bar-bg { width: 100%; height: 6px; background: #000; border: 1px solid #555; border-radius: 3px; margin-top: 5px; }
+        .time-bar-fill { height: 100%; width: 0%; background: var(--lune-blue); transition: width 0.5s; }
+
+        /* FOOTER */
+        #footer { position: fixed; bottom: 0; width: 100%; height: 70px; background: #111; border-top: 2px solid var(--border-gold); display: flex; z-index: 100; }
+        .nav-btn { flex: 1; background: #151515; border: none; color: #666; font-family: 'Cinzel', serif; font-size: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; position: relative; }
+        .nav-btn:hover { background: #222; color: #ccc; }
+        .nav-btn.active { background: linear-gradient(to top, #2a2000, #151515); color: var(--border-gold); border-top: 2px solid var(--border-gold); margin-top: -2px; }
+        .nav-icon { font-size: 20px; margin-bottom: 4px; }
+        .badge { position: absolute; top: 8px; right: 25%; background: #ff0000; color: white; border-radius: 50%; width: 14px; height: 14px; border: 1px solid white; box-shadow: 0 0 8px red; display: none; animation: blink 1.5s infinite; }
+        .badge.show { display: block; }
+        @keyframes blink { 0% { opacity:1; } 50% { opacity:0.5; } 100% { opacity:1; } }
+
+        /* NOTIFICATIONS */
+        #toast-box { position: fixed; top: 80px; right: 10px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; z-index: 2000; }
+        .toast { background: rgba(20, 20, 25, 0.95); border: 1px solid var(--border-gold); color: var(--border-gold); padding: 10px 20px; font-family: 'Cinzel', serif; animation: slideIn 0.3s, fadeOut 0.5s 2.5s forwards; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes fadeOut { to { opacity: 0; } }
+
+    </style>
+</head>
+<body>
+
+    <!-- START OVERLAY -->
+    <div id="start-overlay" onclick="game.start()">
+        <h1 style="font-size: 40px; text-shadow: 0 0 20px gold; margin-bottom: 10px;">Thang Idle</h1>
+        <p style="color: #aaa; margin-bottom: 30px;">Click Anywhere to Initialize Audio & Graphics</p>
+        <button class="start-btn" onclick="game.start(event)">ENTER WORLD</button>
+    </div>
+
+    <!-- AUDIO (With loop) -->
+    <audio id="bgm" src="assets/thema.mp3" loop></audio>
+
+    <div id="header">
+        <div>
+            <div class="rpg-font" style="font-size: 14px;">LVL <span id="ui-level" style="color:white;">1</span></div>
+            <div style="font-size: 11px; color: #aaa;">Max Points: <span id="ui-max-points">0</span></div>
+        </div>
+        
+        <div class="currency-box">
+            <div class="currency-item"><span class="icon-coin">🪙</span> <span id="ui-dien">0</span> Dien</div>
+            <div class="currency-item"><span class="icon-gem">💎</span> <span id="ui-lune">0</span> Lune</div>
+        </div>
+
+        <div class="header-controls">
+            <button class="icon-btn active" id="btn-sound" onclick="game.toggleSound()" title="Sound Effects">🔊</button>
+            <button class="icon-btn active" id="btn-music" onclick="game.toggleMusic()" title="Music">🎵</button>
+        </div>
+    </div>
+    
+    <div id="xp-container">
+        <div id="xp-bar"></div>
+        <div id="xp-text">0 / 250 XP</div>
+    </div>
+
+    <div id="toast-box"></div>
+
+    <div id="main-view">
+        <!-- GRID TAB -->
+        <div id="tab-grid" class="tab-content active">
+            <div id="grid-wrapper">
+                <div id="grid-container"></div>
+                
+                <div id="ki-panel">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <h4 style="margin:0; color:#888; font-size: 12px;">KI STATS ALLOCATION</h4>
+                        <div style="font-size:12px; font-weight:bold; color:var(--border-highlight);">AVAILABLE: <span id="panel-ki-points">0</span></div>
+                    </div>
+                    
+                    <div class="ki-group">
+                        <div class="ki-header"><span class="ki-title">⚔️ Attack <span class="ki-desc">Boosts Income</span></span><span id="val-atk" class="ki-value">Current: +0%</span></div>
+                        <div class="ki-controls"><button class="btn-mini" onclick="game.adjustKI('attack', -1)">-</button><div class="ki-track"><div class="ki-fill" id="bar-atk" style="background: linear-gradient(90deg, #8b0000, #ff0000);"></div></div><button class="btn-mini" onclick="game.adjustKI('attack', 1)">+</button></div>
+                    </div>
+                    <div class="ki-group">
+                        <div class="ki-header"><span class="ki-title">🛡️ Defence <span class="ki-desc">Boosts Experience</span></span><span id="val-def" class="ki-value">Current: +0%</span></div>
+                        <div class="ki-controls"><button class="btn-mini" onclick="game.adjustKI('defence', -1)">-</button><div class="ki-track"><div class="ki-fill" id="bar-def" style="background: linear-gradient(90deg, #006400, #00ff00);"></div></div><button class="btn-mini" onclick="game.adjustKI('defence', 1)">+</button></div>
+                    </div>
+                    <div class="ki-group">
+                        <div class="ki-header"><span class="ki-title">🔵 Ki <span class="ki-desc">Reduces Upgrade Costs</span></span><span id="val-ki" class="ki-value">Current: -0%</span></div>
+                        <div class="ki-controls"><button class="btn-mini" onclick="game.adjustKI('kiStat', -1)">-</button><div class="ki-track"><div class="ki-fill" id="bar-ki" style="background: linear-gradient(90deg, #00008b, #00bfff);"></div></div><button class="btn-mini" onclick="game.adjustKI('kiStat', 1)">+</button></div>
+                    </div>
+                </div>
+                <div style="text-align: center; color: #666; font-size: 10px; margin-top: 5px;">INCOME: <span id="ui-income" style="color:var(--dien-gold);">0</span> DIEN/SEC</div>
+            </div>
+        </div>
+
+        <!-- HAI-RINGS TAB -->
+        <div id="tab-hairings" class="tab-content">
+            <h3 style="text-align:center; border-bottom:1px solid #333; padding-bottom:10px;">Hai-Rings</h3>
+            <div id="rings-list"></div>
+        </div>
+
+        <!-- WORLD TAB -->
+        <div id="tab-world" class="tab-content">
+            <h3 style="text-align:center; border-bottom:1px solid #333; padding-bottom:10px;">World Map</h3>
+            <div id="world-list"></div>
+        </div>
+
+        <!-- LUNE SHOP TAB -->
+        <div id="tab-shop" class="tab-content">
+            <h3 style="text-align:center; border-bottom:1px solid #333; padding-bottom:10px; color:var(--lune-blue);">Lune Shop</h3>
+            <div id="shop-list"></div>
+        </div>
+
+        <!-- RESET TAB -->
+        <div id="tab-settings" class="tab-content">
+            <h3>System</h3>
+            <div class="rpg-card">
+                <div style="flex:1"><div style="font-weight:bold;">Reset Data</div><div style="font-size:0.8em; color:#888;">Wipe all progress permanently</div></div>
+                <button class="rpg-btn" style="background: linear-gradient(to bottom, #a00, #500); border:1px solid #f55; color:white;" onclick="game.hardReset()">RESET</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER NAV -->
+    <div id="footer">
+        <button class="nav-btn active" onclick="ui.switchTab('grid')"><span class="nav-icon">⚔️</span> GRID</button>
+        <button class="nav-btn" onclick="ui.switchTab('hairings')"><span class="nav-icon">🔮</span> HAI-RINGS<span class="badge" id="badge-rings"></span></button>
+        <button class="nav-btn" onclick="ui.switchTab('world')"><span class="nav-icon">🌍</span> WORLD<span class="badge" id="badge-world"></span></button>
+        <button class="nav-btn" onclick="ui.switchTab('shop')"><span class="nav-icon">💎</span> SHOP</button>
+        <button class="nav-btn" onclick="ui.switchTab('settings')"><span class="nav-icon">⚙️</span> RESET</button>
+    </div>
+
+    <script>
+        const MAX_LEVEL = 230;
+        const MAX_KI_POINTS = 779;
+
+        const ASSETS = {
+            npcs: [
+                'assets/Danduki.webp', 'assets/Gin.webp', 'assets/Kanar.webp', 
+                'assets/Nusamlatana.webp', 'assets/Salindra.webp', 'assets/Suekaina.webp', 
+                'assets/VillageElder.webp', 'assets/Yommarat.webp'
+            ],
+            gems: [
+                '<svg viewBox="0 0 10 10"><rect x="2" y="2" width="6" height="6" transform="rotate(45 5 5)" fill="#ff8888"/></svg>',
+                '<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" fill="#88ccff"/></svg>',
+                '<svg viewBox="0 0 10 10"><rect x="2" y="2" width="6" height="6" fill="#88ff88"/></svg>',
+                '<svg viewBox="0 0 10 10"><polygon points="5,1 9,8 1,8" fill="#cc88ff"/></svg>',
+                '<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" fill="#ffcc88" stroke="white" stroke-width="1"/></svg>',
+                '<svg viewBox="0 0 10 10"><rect x="3" y="1" width="4" height="8" fill="#88ffff"/></svg>',
+                '<svg viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#ffff88"/></svg>',
+                '<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="#ff88cc"/></svg>'
+            ],
+            rings: {
+                l1: 'assets/Hai_L1.jpg', l3: 'assets/Hai_L3.jpg', 
+                l5: 'assets/Hai_L5.jpg', l8: 'assets/Hai_L8.jpg', 
+                l9: 'assets/Hai_L9.jpg', sav: 'assets/Sav.jpg'
+            }
+        };
+
+        const WORLD_DATA = [
+            { id: 0, name: "Rian Village", type: "Towns", img: "assets/rian.webp", lvl: 10, cost: 1000000, lune: 0, passive: 1, time: 5 },
+            { id: 1, name: "Yereden", type: "Towns", img: "assets/yereden.webp", lvl: 25, cost: 10000000, lune: 0, passive: 5, time: 10 },
+            { id: 2, name: "Nusamlatan", type: "Towns", img: "assets/nusamlatan.webp", lvl: 100, cost: 100000000, lune: 10000, passive: 10, time: 15 },
+            { id: 3, name: "Forest of Darkness", type: "World Maps", img: "assets/forest.webp", lvl: 40, cost: 100000000, lune: 0, passive: 5, time: 10 },
+            { id: 4, name: "Forest of Chaos", type: "World Maps", img: "assets/chaos.webp", lvl: 60, cost: 1000000000, lune: 0, passive: 25, time: 25 },
+            { id: 5, name: "Entrance of Swamp", type: "World Maps", img: "assets/swamp.webp", lvl: 80, cost: 10000000000, lune: 1000, passive: 40, time: 30 },
+            { id: 6, name: "Swamp of Death", type: "World Maps", img: "assets/death.webp", lvl: 120, cost: 10000000000, lune: 10000, passive: 40, time: 25 },
+            { id: 7, name: "Fury of Mankut", type: "World Maps", img: "assets/mankut.webp", lvl: 140, cost: 100000000000, lune: 100000, passive: 50, time: 20 },
+            { id: 8, name: "Underground Tomb", type: "World Maps", img: "assets/tomb.webp", lvl: 175, cost: 1000000000000, lune: 0, passive: 50, time: 10 }
+        ];
+
+        const RINGS_DATA = [
+            { id: 0, name: "Hai-Ring L1", img: ASSETS.rings.l1, baseCost: 100, baseOut: 1, lune: false, rarity: 1, xpBase: 1 },
+            { id: 1, name: "Hai-Ring L2", img: ASSETS.rings.l1, baseCost: 1000, baseOut: 5, lune: false, rarity: 2, xpBase: 2 },
+            { id: 2, name: "Hai-Ring L3", img: ASSETS.rings.l3, baseCost: 5000, baseOut: 15, lune: false, rarity: 3, xpBase: 3 },
+            { id: 3, name: "Hai-Ring L4", img: ASSETS.rings.l3, baseCost: 20000, baseOut: 50, lune: false, rarity: 4, xpBase: 4 },
+            { id: 4, name: "Hai-Ring L5", img: ASSETS.rings.l5, baseCost: 100000, baseOut: 200, lune: false, rarity: 5, xpBase: 5 },
+            { id: 5, name: "Hai-Ring L6", img: ASSETS.rings.l5, baseCost: 500000, baseOut: 800, lune: false, rarity: 6, xpBase: 6 },
+            { id: 6, name: "Hai-Ring L7", img: ASSETS.rings.l8, baseCost: 2500000, baseOut: 3000, lune: false, rarity: 7, xpBase: 7 },
+            { id: 7, name: "Hai-Ring L8", img: ASSETS.rings.l8, baseCost: 10000000, baseOut: 10000, lune: false, rarity: 8, xpBase: 8 },
+            { id: 8, name: "Hai-Ring L9", img: ASSETS.rings.l9, baseCost: 100000000, baseOut: 50000, lune: true, rarity: 9, xpBase: 9 },
+            { id: 9, name: "Saviour Orb", img: ASSETS.rings.sav, baseCost: 1000000000, luneCost: 50, baseOut: 0, lune: false, special: true, rarity: 20, xpBase: 20 }
+        ];
+
+        const SHOP_ITEMS = [
+            { id: 'xpScroll', name: "Scroll of Experience", type: 'xp', costs: [10000, 200000, 5000000, 20000000], bonuses: [0.25, 0.50, 1.0, 2.0] },
+            { id: 'dropScroll', name: "Scroll of Luck", type: 'drop', costs: [10000, 200000, 5000000, 20000000], bonuses: [0.10, 0.20, 0.40, 0.80] }
+        ];
+
+        const Synth = {
+            ctx: null,
+            init: function() {
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+            },
+            playTone: function(freq, type, duration, startTime=0) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime + startTime);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime + startTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + startTime + duration);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(this.ctx.currentTime + startTime); osc.stop(this.ctx.currentTime + startTime + duration);
+            },
+            play: function(effect) {
+                if(!this.ctx || this.ctx.state === 'suspended') return;
+                switch(effect) {
+                    case 'move': this.playTone(400, 'sine', 0.1); break;
+                    case 'match3': this.playTone(880, 'sine', 0.2); this.playTone(1100, 'sine', 0.2, 0.1); break;
+                    case 'match4': this.playTone(150, 'sawtooth', 0.3); this.playTone(100, 'sawtooth', 0.3, 0.1); break;
+                    case 'match5': 
+                        this.playTone(523.25, 'triangle', 0.3, 0.0);
+                        this.playTone(659.25, 'triangle', 0.3, 0.1);
+                        this.playTone(783.99, 'triangle', 0.3, 0.2);
+                        this.playTone(1046.50, 'triangle', 0.6, 0.3); break;
+                    case 'upgrade': this.playTone(440, 'sine', 0.2, 0.0); this.playTone(880, 'sine', 0.4, 0.1); break;
+                    case 'click': this.playTone(600, 'triangle', 0.05); break;
+                }
+            }
+        };
+
+        let state = {
+            player: { level: 1, xp: 0, dien: 0, lune: 0, ki: { unallocated: 0, attack: 0, defence: 0, kiStat: 0 } },
+            rings: RINGS_DATA.map(r => ({ id: r.id, level: 0, unlocked: r.id === 0 })),
+            world: WORLD_DATA.map(w => ({ id: w.id, unlocked: false, lastCollect: 0 })),
+            shop: { xpScroll: 0, dropScroll: 0 },
+            settings: { music: true, sound: true }
+        };
+
+        var game = {
+            init: function() {
+                this.load();
+                
+                if(!state.townsMeta) state.townsMeta = { rianLastCollect: Date.now(), yeredenLastCollect: Date.now() };
+
+                grid.init();
+                ui.init();
+                setInterval(() => this.tick(), 1000);
+                setInterval(() => this.save(), 10000);
+                
+                const overlay = document.getElementById('start-overlay');
+                if(overlay) {
+                    overlay.addEventListener('click', (e) => this.start(e));
+                    overlay.addEventListener('touchstart', (e) => this.start(e));
+                }
+            },
+
+            start: function(e) {
+                if(e) e.stopPropagation();
+                
+                try {
+                    Synth.init();
+                    if(Synth.ctx && Synth.ctx.state === 'suspended') Synth.ctx.resume();
+                } catch(e) {}
+
+                const overlay = document.getElementById('start-overlay');
+                if(overlay) {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => overlay.style.display = 'none', 500);
+                }
+
+                if(state.settings.music) {
+                    const bgm = document.getElementById('bgm');
+                    if(bgm) {
+                        bgm.volume = 0.5; 
+                        bgm.loop = true;
+                        bgm.play().catch(e => { console.log("Audio blocked - click again to play later"); });
+                    }
+                }
+            },
+
+            tick: function() {
+                let income = 0;
+                state.rings.forEach(r => {
+                    if(r.level > 0 && r.id < 9) {
+                        const data = RINGS_DATA[r.id];
+                        income += data.baseOut * r.level * Math.pow(1.05, r.level);
+                    }
+                });
+                income *= (1 + (state.player.ki.attack * 0.1));
+                if(state.rings[9].unlocked) income *= 2.0;
+
+                this.addCurrency('dien', income);
+                
+                // AUTO COLLECT WORLD (With Orb Bonus)
+                let orbLevel = state.rings[9].level; 
+                let orbWorldMult = 1 + (orbLevel * 0.5);
+
+                state.world.forEach((w, idx) => {
+                    if(w.unlocked) {
+                        const data = WORLD_DATA[idx];
+                        const duration = data.time * 60000;
+                        if(Date.now() - w.lastCollect >= duration) {
+                            let earned = Math.floor(data.passive * orbWorldMult);
+                            this.addCurrency('lune', earned);
+                            w.lastCollect = Date.now();
+                            ui.notify(`Auto-collected ${earned} Lune from ${data.name}`, "cyan");
+                        }
+                    }
+                });
+
+                ui.updateStats(income);
+            },
+
+            addCurrency: function(type, amount) {
+                if(type === 'lune') state.player.lune += Math.floor(amount);
+                else state.player.dien += amount;
+            },
+
+            addXP: function(amount, suppressNotify = false) {
+                if(state.player.level >= MAX_LEVEL) return;
+                
+                let mod = 1 + (state.player.ki.defence * 0.1);
+                const scrollLvl = state.shop.xpScroll;
+                if(scrollLvl > 0) mod += SHOP_ITEMS[0].bonuses[scrollLvl-1];
+                let final = Math.floor(amount * mod);
+                state.player.xp += final;
+                
+                if(!suppressNotify && final > 0) {
+                    ui.notify(`+${final.toLocaleString()} XP`, "#4caf50");
+                }
+                
+                this.checkLevelUp();
+            },
+
+            checkLevelUp: function() {
+                if(state.player.level >= MAX_LEVEL) return;
+
+                let required = Math.floor(250 * Math.pow(1.12, state.player.level - 1));
+                if(state.player.xp >= required) {
+                    state.player.xp -= required;
+                    state.player.level++;
+                    
+                    let points = (state.player.level % 5 === 0) ? 5 : 3;
+                    state.player.ki.unallocated += points;
+                    
+                    if(state.player.level % 10 === 0) {
+                        ui.notify("New Town Buildings Available!", "cyan");
+                        ui.renderWorld();
+                    }
+                    ui.notify(`Level Up! Rank ${state.player.level}`);
+                    
+                    ui.updateKI();
+
+                    if(state.player.level < MAX_LEVEL) this.checkLevelUp();
+                    game.playSound('upgrade');
+                }
+                ui.updateStats();
+            },
+
+            adjustKI: function(stat, delta) {
+                if(delta > 0 && state.player.ki.unallocated > 0) {
+                    state.player.ki[stat]++;
+                    state.player.ki.unallocated--;
+                } else if (delta < 0 && state.player.ki[stat] > 0) {
+                    state.player.ki[stat]--;
+                    state.player.ki.unallocated++;
+                }
+                ui.updateKI();
+                ui.updateStats();
+            },
+
+            upgradeRing: function(id) {
+                const ring = state.rings[id];
+                const cost = this.getRingCost(id);
+                const canAfford = id === 9 
+                    ? (state.player.dien >= cost.dien && state.player.lune >= cost.lune)
+                    : (state.player.dien >= cost);
+
+                if(canAfford) {
+                    if(id === 9) { state.player.dien -= cost.dien; state.player.lune -= cost.lune; }
+                    else { state.player.dien -= cost; }
+                    
+                    ring.level++;
+                    ring.unlocked = true;
+
+                    // UPDATED XP FORMULA (No decay, strict rarity)
+                    const data = RINGS_DATA[id];
+                    let rawXP = data.xpBase * ring.level;
+                    
+                    // Diminishing Returns for low rarity (optional based on your request: "Each upgrade of a less rare hai-ring should make the EXP gained less")
+                    // We apply a decay factor ONLY if it's a low-rarity ring (id < 5) to follow the instruction
+                    if(id < 5) {
+                        let decay = 1 + (ring.level * 0.05);
+                        rawXP = rawXP / decay;
+                    }
+
+                    let xpGain = Math.max(1, Math.floor(rawXP));
+                    
+                    this.addXP(xpGain, true);
+                    ui.notify(`Upgraded! +${xpGain} EXP`, "#4caf50");
+
+                    let chance = 0.001 + (id * 0.001); 
+                    if(Math.random() < chance) {
+                        let min = (id < 5) ? 1 : 20;
+                        let max = (id < 5) ? 10 : 50;
+                        let luneAmt = Math.floor(Math.random() * (max - min + 1)) + min;
+                        this.addCurrency('lune', luneAmt);
+                        ui.notify(`Lucky Upgrade! Found ${luneAmt} Lune!`, "cyan");
+                    }
+                    game.playSound('upgrade');
+                    ui.renderRings();
+                    ui.updateStats();
+                }
+            },
+
+            upgradeRingMax: function(id) {
+                const ring = state.rings[id];
+                const data = RINGS_DATA[id];
+                if (id === 9) { this.upgradeRing(id); return; }
+
+                let affordableCount = 0;
+                let tempDien = state.player.dien;
+                
+                // Calc Max
+                for(let i=0; i<100; i++) {
+                    let raw = data.baseCost * Math.pow(1.18, ring.level + i);
+                    let disc = Math.pow(0.9, state.player.ki.kiStat);
+                    let final = raw * disc;
+                    if (tempDien >= final) { tempDien -= final; affordableCount++; } else break;
+                }
+
+                if (affordableCount > 0) this.performUpgradeBatch(id, affordableCount);
+            },
+
+            performUpgradeBatch: function(id, count) {
+                const ring = state.rings[id];
+                const data = RINGS_DATA[id];
+                let totalXPGain = 0;
+                let totalLuneFound = 0;
+                
+                for(let i=0; i<count; i++) {
+                    const cost = this.getRingCost(id);
+                    state.player.dien -= cost; 
+                    ring.level++;
+                    ring.unlocked = true;
+
+                    let rawXP = data.xpBase * ring.level;
+                    if(id < 5) {
+                        let decay = 1 + (ring.level * 0.05);
+                        rawXP = rawXP / decay;
+                    }
+                    let xpStep = Math.max(1, Math.floor(rawXP));
+                    
+                    totalXPGain += xpStep;
+
+                    let chance = 0.001 + (id * 0.001); 
+                    if(Math.random() < chance) {
+                        let min = (id < 5) ? 1 : 20;
+                        let max = (id < 5) ? 10 : 50;
+                        totalLuneFound += Math.floor(Math.random() * (max - min + 1)) + min;
+                    }
+                }
+                
+                this.addXP(totalXPGain, true); 
+
+                if(totalLuneFound > 0) {
+                    this.addCurrency('lune', totalLuneFound);
+                    ui.notify(`Batch complete! +${totalXPGain} EXP, Found ${totalLuneFound} Lune!`, "cyan");
+                } else {
+                    ui.notify(`Upgraded x${count}! +${totalXPGain} EXP`, "#4caf50");
+                }
+                this.checkLevelUp();
+                game.playSound('upgrade');
+                ui.renderRings();
+                ui.updateStats();
+            },
+
+            getRingCost: function(id) {
+                const ring = state.rings[id];
+                const data = RINGS_DATA[id];
+                
+                // ORB COST SCALING: 2.5x per level
+                if(id === 9) {
+                     let mult = Math.pow(2.5, ring.level);
+                     return { 
+                        dien: data.baseCost * mult, 
+                        lune: Math.floor(data.luneCost * mult) 
+                     };
+                }
+                
+                // STANDARD: 1.18x per level
+                let cost = data.baseCost * Math.pow(1.18, ring.level);
+                let discount = Math.pow(0.9, state.player.ki.kiStat);
+                return cost * discount;
+            },
+
+            unlockWorld: function(idx) {
+                const w = state.world[idx]; const data = WORLD_DATA[idx];
+                if(state.player.level < data.lvl) return;
+                if(state.player.dien >= data.cost && state.player.lune >= (data.lune || 0)) {
+                    state.player.dien -= data.cost;
+                    state.player.lune -= (data.lune || 0);
+                    w.unlocked = true; w.lastCollect = Date.now();
+                    game.playSound('upgrade'); ui.renderWorld(); ui.updateStats();
+                }
+            },
+
+            buyShopItem: function(itemId) {
+                const item = SHOP_ITEMS.find(i => i.id === itemId);
+                const currentLvl = state.shop[itemId];
+                if(currentLvl >= 4) return;
+                const cost = item.costs[currentLvl];
+                if(state.player.lune >= cost) {
+                    state.player.lune -= cost; state.shop[itemId]++;
+                    game.playSound('upgrade'); ui.renderShop(); ui.updateStats();
+                }
+            },
+
+            save: function() { localStorage.setItem('ThangIdle', JSON.stringify(state)); },
+            load: function() {
+                const saved = localStorage.getItem('ThangIdle');
+                if(saved) {
+                    const loaded = JSON.parse(saved);
+                    if(!loaded.world || loaded.world.length !== WORLD_DATA.length) {
+                        loaded.world = WORLD_DATA.map(w => ({ id: w.id, unlocked: false, lastCollect: 0 }));
+                    }
+                    state = { ...state, ...loaded };
+                }
+            },
+            hardReset: function() {
+                if(confirm("Wipe all progress?")) {
+                    localStorage.removeItem('ThangIdle');
+                    location.reload();
+                }
+            },
+            playSound: function(id) {
+                if(!state.settings.sound) return;
+                Synth.play(id);
+            },
+            toggleMusic: function() {
+                state.settings.music = !state.settings.music;
+                const bgm = document.getElementById('bgm');
+                state.settings.music ? bgm.play() : bgm.pause();
+                document.getElementById('btn-music').classList.toggle('active');
+            },
+            toggleSound: function() {
+                state.settings.sound = !state.settings.sound;
+                document.getElementById('btn-sound').classList.toggle('active');
+            }
+        };
+
+        const grid = {
+            width: 8, height: 8, cells: [],
+            selected: null, dragStart: null, hintTimer: null,
+
+            init: function() {
+                this.el = document.getElementById('grid-container');
+                this.createBoard();
+                this.el.addEventListener('mousedown', e => this.handleInputStart(e));
+                this.el.addEventListener('touchstart', e => this.handleInputStart(e));
+                window.addEventListener('mouseup', e => this.handleInputEnd(e));
+                window.addEventListener('touchend', e => this.handleInputEnd(e));
+            },
+
+            createBoard: function() {
+                let safety = 0;
+                do {
+                    this.cells = [];
+                    this.el.innerHTML = '';
+                    for(let y=0; y<this.height; y++) {
+                        let row = [];
+                        for(let x=0; x<this.width; x++) {
+                            let type;
+                            do { type = Math.floor(Math.random() * 8); } 
+                            while( (x>=2 && row[x-1].type === type && row[x-2].type === type) || (y>=2 && this.cells[y-1][x].type === type && this.cells[y-2][x].type === type) );
+
+                            const tile = document.createElement('div');
+                            tile.className = `tile npc-${type}`;
+                            tile.dataset.x = x; tile.dataset.y = y;
+                            
+                            const img = document.createElement('img');
+                            img.src = ASSETS.npcs[type];
+                            img.onerror = function() { this.style.backgroundColor = ['#f00','#00f','#0f0','#808','#f80','#0ff','#ff0','#f08'][type]; this.src=''; }
+                            
+                            const gem = document.createElement('div');
+                            gem.className = 'npc-gem';
+                            gem.innerHTML = ASSETS.gems[type];
+
+                            tile.appendChild(img);
+                            tile.appendChild(gem);
+                            this.el.appendChild(tile);
+                            row.push({ type: type, el: tile, img: img, gem: gem });
+                        }
+                        this.cells.push(row);
+                    }
+                    safety++;
+                } while (!this.hasPossibleMove() && safety < 50);
+
+                this.resetHintTimer();
+            },
+
+            hasPossibleMove: function() {
+                let temp = this.cells.map(row => row.map(c => c.type));
+                const check = (arr) => {
+                    for(let y=0; y<this.height; y++) {
+                        for(let x=0; x<this.width-2; x++) {
+                            if(arr[y][x] !== -1 && arr[y][x] == arr[y][x+1] && arr[y][x] == arr[y][x+2]) return true;
+                        }
+                    }
+                    for(let x=0; x<this.width; x++) {
+                        for(let y=0; y<this.height-2; y++) {
+                            if(arr[y][x] !== -1 && arr[y][x] == arr[y+1][x] && arr[y][x] == arr[y+2][x]) return true;
+                        }
+                    }
+                    return false;
+                }
+
+                for(let y=0; y<this.height; y++) {
+                    for(let x=0; x<this.width-1; x++) {
+                        let t = temp[y][x]; temp[y][x] = temp[y][x+1]; temp[y][x+1] = t;
+                        if(check(temp)) return {x1:x, y1:y, x2:x+1, y2:y}; 
+                        t = temp[y][x]; temp[y][x] = temp[y][x+1]; temp[y][x+1] = t;
+                    }
+                }
+                for(let x=0; x<this.width; x++) {
+                    for(let y=0; y<this.height-1; y++) {
+                        let t = temp[y][x]; temp[y][x] = temp[y+1][x]; temp[y+1][x] = t;
+                        if(check(temp)) return {x1:x, y1:y, x2:x, y2:y+1};
+                        t = temp[y][x]; temp[y][x] = temp[y+1][x]; temp[y+1][x] = t;
+                    }
+                }
+                return false;
+            },
+
+            resetHintTimer: function() {
+                if(this.hintTimer) clearTimeout(this.hintTimer);
+                document.querySelectorAll('.hint').forEach(e => e.classList.remove('hint'));
+                this.hintTimer = setTimeout(() => this.showHint(), 10000); 
+            },
+
+            showHint: function() {
+                const move = this.hasPossibleMove();
+                if(move) {
+                    this.cells[move.y1][move.x1].el.classList.add('hint');
+                    this.cells[move.y2][move.x2].el.classList.add('hint');
+                } else {
+                    this.createBoard(); 
+                }
+            },
+
+            handleInputStart: function(e) {
+                const target = e.target.closest('.tile');
+                if(!target) return;
+                this.resetHintTimer(); 
+                e.preventDefault(); 
+                const x = parseInt(target.dataset.x);
+                const y = parseInt(target.dataset.y);
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                this.dragStart = { x, y, cx: clientX, cy: clientY };
+                this.handleTap(x, y); 
+            },
+
+            handleInputEnd: function(e) {
+                if(!this.dragStart) return;
+                
+                const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+                const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+
+                const dx = clientX - this.dragStart.cx;
+                const dy = clientY - this.dragStart.cy;
+                const absX = Math.abs(dx);
+                const absY = Math.abs(dy);
+
+                if(Math.max(absX, absY) > 30) {
+                    let tx = this.dragStart.x;
+                    let ty = this.dragStart.y;
+                    if(absX > absY) { tx += (dx > 0 ? 1 : -1); } 
+                    else { ty += (dy > 0 ? 1 : -1); } 
+
+                    if(tx >= 0 && tx < this.width && ty >= 0 && ty < this.height) {
+                        this.attemptSwap(this.dragStart.x, this.dragStart.y, tx, ty);
+                        this.selected = null;
+                        document.querySelectorAll('.tile.selected').forEach(el=>el.classList.remove('selected'));
+                    }
+                }
+                this.dragStart = null;
+            },
+
+            handleTap: function(x, y) {
+                this.resetHintTimer();
+                if(!this.selected) {
+                    this.selected = {x, y};
+                    this.cells[y][x].el.classList.add('selected');
+                } else {
+                    const sx = this.selected.x;
+                    const sy = this.selected.y;
+                    this.cells[sy][sx].el.classList.remove('selected');
+                    this.selected = null;
+
+                    if(Math.abs(sx - x) + Math.abs(sy - y) === 1) {
+                        this.attemptSwap(sx, sy, x, y);
+                    } else if (sx !== x || sy !== y) {
+                        this.selected = {x, y};
+                        this.cells[y][x].el.classList.add('selected');
+                    }
+                }
+            },
+
+            attemptSwap: async function(x1, y1, x2, y2) {
+                game.playSound('move');
+                let t = this.cells[y1][x1].type;
+                this.cells[y1][x1].type = this.cells[y2][x2].type;
+                this.cells[y2][x2].type = t;
+                this.updateVisuals();
+
+                const matches = this.findMatches();
+                if(matches.length > 0) {
+                    await this.processMatches(matches);
+                } else {
+                    t = this.cells[y1][x1].type;
+                    this.cells[y1][x1].type = this.cells[y2][x2].type;
+                    this.cells[y2][x2].type = t;
+                    setTimeout(() => this.updateVisuals(), 100); 
+                    game.playSound('click'); 
+                }
+            },
+
+            findMatches: function() {
+                let matches = [];
+                for(let r=0; r<this.height; r++) {
+                    for(let c=0; c<this.width-2; c++) {
+                        let t = this.cells[r][c].type;
+                        if(t!==-1 && this.cells[r][c+1].type === t && this.cells[r][c+2].type === t) {
+                            let m = [{x:c,y:r},{x:c+1,y:r},{x:c+2,y:r}];
+                            let k = c+3; while(k<this.width && this.cells[r][k].type===t) { m.push({x:k,y:r}); k++; }
+                            matches.push(m); c=k-1;
+                        }
+                    }
+                }
+                for(let c=0; c<this.width; c++) {
+                    for(let r=0; r<this.height-2; r++) {
+                        let t = this.cells[r][c].type;
+                        if(t!==-1 && this.cells[r+1][c].type === t && this.cells[r+2][c].type === t) {
+                            let m = [{x:c,y:r},{x:c,y:r+1},{x:c,y:r+2}];
+                            let k = r+3; while(k<this.height && this.cells[k][c].type===t) { m.push({x:c,y:k}); k++; }
+                            matches.push(m); r=k-1;
+                        }
+                    }
+                }
+                return matches;
+            },
+
+            processMatches: async function(matches) {
+                let unique = new Set();
+                let maxLen = 0;
+                matches.forEach(m => {
+                    if(m.length > maxLen) maxLen = m.length;
+                    m.forEach(p => unique.add(`${p.x},${p.y}`));
+                });
+
+                let count = unique.size;
+                let mult = (maxLen>=5?2.0:(maxLen===4?1.5:1.0));
+                let effect = (maxLen>=5?'match5':(maxLen===4?'match4':'match3'));
+                game.playSound(effect);
+
+                game.addCurrency('dien', 10 * count * mult);
+                game.addXP(5 * count * (maxLen>=5?3:(maxLen===4?2:1)));
+
+                let chance = (maxLen>=5?0.015:(maxLen===4?0.005:0.001));
+                if(state.shop.dropScroll > 0) chance *= (1 + SHOP_ITEMS[1].bonuses[state.shop.dropScroll-1]);
+                if(Math.random() < chance) { game.addCurrency('lune', 1); ui.notify("Lune Dropped!"); }
+
+                unique.forEach(s => {
+                    let [x,y] = s.split(',').map(Number);
+                    this.cells[y][x].type = -1; 
+                });
+                
+                await new Promise(r => setTimeout(r, 150));
+                for(let x=0; x<this.width; x++) {
+                    let ey = this.height-1;
+                    for(let y=this.height-1; y>=0; y--) {
+                        if(this.cells[y][x].type !== -1) {
+                            if(ey !== y) { this.cells[ey][x].type = this.cells[y][x].type; this.cells[y][x].type = -1; }
+                            ey--;
+                        }
+                    }
+                    for(let y=0; y<=ey; y++) this.cells[y][x].type = Math.floor(Math.random()*8);
+                }
+                this.updateVisuals();
+
+                await new Promise(r => setTimeout(r, 200));
+                const next = this.findMatches();
+                if(next.length > 0) {
+                    await this.processMatches(next);
+                } else {
+                    if(!this.hasPossibleMove()) {
+                        ui.notify("No moves! Shuffling...", "cyan");
+                        await new Promise(r => setTimeout(r, 1000));
+                        this.createBoard();
+                    }
+                }
+                this.resetHintTimer();
+            },
+
+            updateVisuals: function() {
+                for(let y=0; y<this.height; y++) {
+                    for(let x=0; x<this.width; x++) {
+                        const t = this.cells[y][x].type;
+                        if(t>=0) {
+                            this.cells[y][x].el.className = `tile npc-${t}`;
+                            this.cells[y][x].img.src = ASSETS.npcs[t];
+                            this.cells[y][x].gem.innerHTML = ASSETS.gems[t];
+                        }
+                    }
+                }
+            }
+        };
+
+        const ui = {
+            init: function() {
+                this.updateStats(); this.updateKI(); this.renderRings(); this.renderWorld(); this.renderShop();
+            },
+            switchTab: function(tab) {
+                document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+                document.getElementById('tab-'+tab).classList.add('active');
+                document.querySelectorAll('.nav-btn').forEach(e => e.classList.remove('active'));
+                event.currentTarget.classList.add('active');
+                game.playSound('click');
+            },
+            updateStats: function(incomeOverride) {
+                if(state.player.level >= MAX_LEVEL) {
+                    document.getElementById('ui-level').innerText = "MAX (230)";
+                    document.getElementById('xp-bar').style.width = '100%';
+                } else {
+                    document.getElementById('ui-level').innerText = state.player.level;
+                    let req = Math.floor(250 * Math.pow(1.12, state.player.level - 1));
+                    document.getElementById('xp-bar').style.width = Math.min(100, (state.player.xp/req)*100) + '%';
+                    document.getElementById('xp-text').innerText = `${Math.floor(state.player.xp).toLocaleString()} / ${req.toLocaleString()} XP`;
+                }
+
+                document.getElementById('ui-max-points').innerText = MAX_KI_POINTS;
+                document.getElementById('ui-dien').innerText = Math.floor(state.player.dien).toLocaleString();
+                document.getElementById('ui-lune').innerText = state.player.lune.toLocaleString();
+                
+                if(incomeOverride !== undefined) document.getElementById('ui-income').innerText = Math.floor(incomeOverride).toLocaleString();
+
+                const hasUpgrade = state.rings.some((r, i) => {
+                     if(!r.unlocked && (i>0 && state.rings[i-1].level==0) && i!==0) return false;
+                     const cost = game.getRingCost(i);
+                     if(i===9) return state.player.dien >= cost.dien && state.player.lune >= cost.lune;
+                     return state.player.dien >= cost;
+                });
+                document.getElementById('badge-rings').classList.toggle('show', hasUpgrade);
+                document.getElementById('badge-world').classList.toggle('show', state.world.some((w, i) => !w.unlocked && state.player.level >= WORLD_DATA[i].lvl && state.player.dien >= WORLD_DATA[i].cost));
+
+                this.renderRings(true);
+                this.renderShop(true);
+                this.updateKI();
+                this.renderWorld(true);
+            },
+            updateKI: function() {
+                const k = state.player.ki;
+                const panelPoints = document.getElementById('panel-ki-points');
+                if(panelPoints) panelPoints.innerText = k.unallocated;
+
+                document.getElementById('val-atk').innerText = `+${Math.floor(k.attack*10)}%`;
+                document.getElementById('bar-atk').style.width = (k.attack / MAX_KI_POINTS * 100) + '%';
+                
+                document.getElementById('val-def').innerText = `+${Math.floor(k.defence*10)}%`;
+                document.getElementById('bar-def').style.width = (k.defence / MAX_KI_POINTS * 100) + '%';
+                
+                document.getElementById('val-ki').innerText = `-${Math.floor(100-(100*Math.pow(0.9,k.kiStat)))}%`;
+                document.getElementById('bar-ki').style.width = (k.kiStat / MAX_KI_POINTS * 100) + '%';
+            },
+            renderRings: function(updateOnly = false) {
+                const list = document.getElementById('rings-list');
+                if(!updateOnly) list.innerHTML = '';
+                
+                state.rings.forEach((r, idx) => {
+                    const prevUnlocked = idx === 0 || state.rings[idx-1].level > 0;
+                    if(!r.unlocked && !prevUnlocked) return;
+                    
+                    const cost = game.getRingCost(idx);
+                    const canAfford = idx===9 ? (state.player.dien>=cost.dien && state.player.lune>=cost.lune) : (state.player.dien>=cost);
+                    
+                    const data = RINGS_DATA[idx];
+                    
+                    let maxBuy = 0;
+                    if (idx !== 9) { 
+                        let tempDien = state.player.dien;
+                        for(let i=0; i<100; i++) {
+                            let raw = data.baseCost * Math.pow(1.18, r.level+i);
+                            let disc = Math.pow(0.9, state.player.ki.kiStat);
+                            let final = raw * disc;
+                            if(tempDien >= final) { tempDien -= final; maxBuy++; } else break;
+                        }
+                    }
+
+                    if(updateOnly) {
+                        const btn = document.getElementById(`btn-ring-${idx}`);
+                        if(btn) btn.disabled = !canAfford;
+                        
+                        const btnMax = document.getElementById(`btn-max-${idx}`);
+                        if(btnMax) {
+                            btnMax.disabled = maxBuy === 0;
+                            btnMax.innerText = maxBuy > 0 ? `MAX X${maxBuy}` : "MAX";
+                        }
+                        return;
+                    }
+
+                    const currentOut = r.level===0 ? 0 : data.baseOut * r.level * Math.pow(1.05, r.level);
+                    const nextOut = data.baseOut * (r.level+1) * Math.pow(1.05, r.level+1);
+                    const increase = nextOut - currentOut;
+
+                    const div = document.createElement('div');
+                    div.className = `rpg-card ${r.level>0?'unlocked':''}`;
+                    
+                    let outText = "";
+                    if(r.level === 0 && idx !== 9) {
+                        outText = `Base: ${data.baseOut} /s`;
+                    } else if (idx !== 9) {
+                        outText = `Output: ${Math.floor(currentOut).toLocaleString()} /s <span style="color:var(--text-green)">(+${Math.floor(increase).toLocaleString()})</span>`;
+                    } else if (idx === 9) {
+                         outText = `Saviour Orb: 2x Global Multiplier`;
+                    }
+
+                    let btnHtml = `<button id="btn-ring-${idx}" class="rpg-btn" ${canAfford?'':'disabled'} onclick="game.upgradeRing(${idx})">${r.level===0?'UNLOCK':'UPGRADE'}</button>`;
+                    
+                    if(r.level > 0 && idx !== 9) {
+                        let maxLabel = maxBuy > 0 ? `MAX X${maxBuy}` : "MAX";
+                        let maxDisabled = maxBuy === 0 ? 'disabled' : '';
+                        btnHtml += `<button id="btn-max-${idx}" class="rpg-btn" ${maxDisabled} onclick="game.upgradeRingMax(${idx})">${maxLabel}</button>`;
+                    }
+
+                    div.innerHTML = `
+                        <img src="${data.img}" class="item-icon ${r.level>0?'active':''}">
+                        <div style="flex:1">
+                            <div style="color:var(--border-gold); font-weight:bold;">${data.name}</div>
+                            <div style="font-size:0.8em; color:#888;">Lvl ${r.level}</div>
+                            <div style="font-size:0.8em; color:var(--dien-gold);">${idx===9?`${cost.dien.toLocaleString()} D + ${cost.lune} L`:Math.floor(cost).toLocaleString() + ' Dien'}</div>
+                            <div style="font-size:0.75em; margin-top:2px;">${outText}</div>
+                        </div>
+                        <div class="btn-col">
+                            ${btnHtml}
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            },
+            renderShop: function(updateOnly = false) {
+                const list = document.getElementById('shop-list');
+                if(!updateOnly) list.innerHTML = '';
+
+                SHOP_ITEMS.forEach(item => {
+                    const lvl = state.shop[item.id];
+                    const cost = item.costs[lvl] || 0;
+                    const canAfford = lvl<4 && state.player.lune >= cost;
+                    
+                    if(updateOnly) {
+                        const btn = document.getElementById(`btn-shop-${item.id}`);
+                        if(btn) btn.disabled = !canAfford || lvl >= 4;
+                        return;
+                    }
+
+                    const div = document.createElement('div');
+                    div.className = 'rpg-card';
+                    div.innerHTML = `
+                        <div style="flex:1">
+                            <div style="color:var(--lune-blue); font-weight:bold;">${item.name}</div>
+                            <div style="font-size:0.8em; color:#ccc;">Lvl ${lvl} / 4</div>
+                            <div style="font-size:0.8em; color:cyan;">${lvl>=4?'MAXED':cost.toLocaleString() + ' Lune'}</div>
+                        </div>
+                        <button id="btn-shop-${item.id}" class="rpg-btn" style="filter:hue-rotate(180deg);" ${canAfford?'':'disabled'} onclick="game.buyShopItem('${item.id}')">BUY</button>
+                    `;
+                    list.appendChild(div);
+                });
+            },
+            renderWorld: function(updateOnly = false) {
+                const list = document.getElementById('world-list');
+                if(!updateOnly) list.innerHTML = '';
+
+                const groups = { "Towns": [], "World Maps": [] };
+                WORLD_DATA.forEach((w, i) => { if(groups[w.type]) groups[w.type].push({data:w, idx:i}); });
+
+                for(const [type, items] of Object.entries(groups)) {
+                    if(!updateOnly) list.innerHTML += `<div class="world-header">${type}</div>`;
+                    
+                    items.forEach(item => {
+                        const {data, idx} = item;
+                        const wState = state.world[idx];
+                        const duration = data.time * 60000;
+                        let elapsed = wState.unlocked ? Date.now() - wState.lastCollect : 0;
+                        let pct = Math.min(100, (elapsed / duration) * 100);
+
+                        // ORB BONUS
+                        let orbLevel = state.rings[9].level; 
+                        let orbWorldMult = 1 + (orbLevel * 0.5);
+                        let actualGain = Math.floor(data.passive * orbWorldMult);
+
+                        if(updateOnly) {
+                            const btnUnlock = document.getElementById(`btn-w-unlock-${idx}`);
+                            if(btnUnlock) { 
+                                const canUnlock = state.player.level >= data.lvl && state.player.dien >= data.cost && state.player.lune >= (data.lune||0);
+                                btnUnlock.disabled = !canUnlock; 
+                            }
+                            const bar = document.getElementById(`w-bar-${idx}`);
+                            const gainTxt = document.getElementById(`w-gain-${idx}`);
+                            if(bar) bar.style.width = pct + '%';
+                            if(gainTxt) gainTxt.innerText = `Auto-Collecting: ${actualGain} Lune / ${data.time}m`;
+                            return;
+                        }
+
+                        const canUnlock = state.player.level >= data.lvl && state.player.dien >= data.cost && state.player.lune >= (data.lune||0);
+                        const costTxt = `${data.cost.toLocaleString()} D` + (data.lune ? ` + ${data.lune} L` : '');
+
+                        const div = document.createElement('div');
+                        div.className = `rpg-card ${wState.unlocked ? 'unlocked' : ''}`;
+                        div.innerHTML = `
+                            <img src="${data.img}" class="item-icon ${wState.unlocked?'active':''}" style="border-radius:50%;" onerror="this.style.background='#333'">
+                            <div style="flex:1">
+                                <div style="color:var(--border-gold); font-weight:bold;">${data.name}</div>
+                                <div style="font-size:0.8em; color:#888;">Req: Lvl ${data.lvl}</div>
+                                ${!wState.unlocked ? `<div style="font-size:0.8em; color:var(--dien-gold);">Cost: ${costTxt}</div><div style="font-size:0.7em; color:cyan;">Earns ${data.passive} Lune / ${data.time}m</div>` : 
+                                `<div class="time-bar-bg"><div id="w-bar-${idx}" class="time-bar-fill"></div></div>
+                                 <div id="w-gain-${idx}" style="font-size:0.7em; color:cyan; margin-top:2px;">Auto-Collecting: ${actualGain} Lune / ${data.time}m</div>`}
+                            </div>
+                            <div style="margin-left:10px;">
+                                ${!wState.unlocked ? 
+                                    `<button id="btn-w-unlock-${idx}" class="rpg-btn" ${canUnlock?'':'disabled'} onclick="game.unlockWorld(${idx})">UNLOCK</button>` :
+                                    `<div style="font-size:0.7em; color:#4caf50;">ACTIVE</div>`
+                                }
+                            </div>
+                        `;
+                        list.appendChild(div);
+                    });
+                }
+            },
+            notify: function(msg, color='white') {
+                const box = document.getElementById('toast-box');
+                const d = document.createElement('div');
+                d.className = 'toast'; d.style.color = color; d.innerText = msg;
+                box.appendChild(d); setTimeout(()=>d.remove(),3000);
+            }
+        };
+
+        window.game = game;
+        window.onload = function() { game.init(); };
+    </script>
+</body>
+</html>

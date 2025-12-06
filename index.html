@@ -152,6 +152,46 @@
         .time-bar-bg { width: 100%; height: 6px; background: #000; border: 1px solid #555; border-radius: 3px; margin-top: 5px; }
         .time-bar-fill { height: 100%; width: 0%; background: var(--lune-blue); transition: width 0.5s; }
 
+        /* VOXEL ART UPDATED */
+        .voxel-container {
+            min-width: 80px;
+            height: 100px;
+            margin-right: 15px;
+            position: relative;
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            justify-content: flex-start;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 2px solid #444;
+            padding-bottom: 5px;
+        }
+        .voxel-block {
+            height: 12px;
+            margin-top: -2px;
+            background: linear-gradient(to right, #8b4513, #a0522d);
+            border: 1px solid #5c3a21;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.5);
+            position: relative;
+            z-index: 1;
+        }
+        .voxel-block::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: rgba(255,255,255,0.1);
+        }
+        .voxel-roof {
+            width: 0; height: 0; 
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-bottom: 25px solid #8b0000;
+            filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5));
+            z-index: 2;
+            margin-bottom: -5px;
+        }
+        
+        /* PASSIVE BAR */
+        .passive-bar-bg { width: 100%; height: 6px; background: #000; border: 1px solid #555; margin-top: 5px; border-radius: 3px; }
+        .passive-bar-fill { height: 100%; background: var(--lune-blue); width: 0%; transition: width 0.5s; }
+
         /* FOOTER */
         #footer { position: fixed; bottom: 0; width: 100%; height: 70px; background: #111; border-top: 2px solid var(--border-gold); display: flex; z-index: 100; }
         .nav-btn { flex: 1; background: #151515; border: none; color: #666; font-family: 'Cinzel', serif; font-size: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; position: relative; }
@@ -179,8 +219,8 @@
         <button class="start-btn" onclick="game.start(event)">ENTER WORLD</button>
     </div>
 
-    <!-- AUDIO (With loop) -->
-    <audio id="bgm" src="assets/thema.mp3" loop></audio>
+    <!-- AUDIO -->
+    <audio id="bgm" loop><source src="assets/thema.mp3" type="audio/mpeg"></audio>
 
     <div id="header">
         <div>
@@ -235,6 +275,12 @@
             </div>
         </div>
 
+        <!-- NPC TAB -->
+        <div id="tab-npcs" class="tab-content">
+            <h3 style="text-align:center; border-bottom:1px solid #333; padding-bottom:10px;">NPC Upgrades</h3>
+            <div id="npc-list"></div>
+        </div>
+
         <!-- HAI-RINGS TAB -->
         <div id="tab-hairings" class="tab-content">
             <h3 style="text-align:center; border-bottom:1px solid #333; padding-bottom:10px;">Hai-Rings</h3>
@@ -266,7 +312,8 @@
     <!-- FOOTER NAV -->
     <div id="footer">
         <button class="nav-btn active" onclick="ui.switchTab('grid')"><span class="nav-icon">⚔️</span> GRID</button>
-        <button class="nav-btn" onclick="ui.switchTab('hairings')"><span class="nav-icon">🔮</span> HAI-RINGS<span class="badge" id="badge-rings"></span></button>
+        <button class="nav-btn" onclick="ui.switchTab('npcs')"><span class="nav-icon">👤</span> NPCs</button>
+        <button class="nav-btn" onclick="ui.switchTab('hairings')"><span class="nav-icon">🔮</span> RINGS<span class="badge" id="badge-rings"></span></button>
         <button class="nav-btn" onclick="ui.switchTab('world')"><span class="nav-icon">🌍</span> WORLD<span class="badge" id="badge-world"></span></button>
         <button class="nav-btn" onclick="ui.switchTab('shop')"><span class="nav-icon">💎</span> SHOP</button>
         <button class="nav-btn" onclick="ui.switchTab('settings')"><span class="nav-icon">⚙️</span> RESET</button>
@@ -275,13 +322,21 @@
     <script>
         const MAX_LEVEL = 230;
         const MAX_KI_POINTS = 779;
+        const LUNE_FILL_TIME = 300000; 
+
+        const NPC_DATA = [
+            { id: 0, name: "Danduki", img: "assets/Danduki.webp", rarity: 1 },
+            { id: 1, name: "Gin", img: "assets/Gin.webp", rarity: 2 },
+            { id: 2, name: "Village Elder", img: "assets/VillageElder.webp", rarity: 3 },
+            { id: 3, name: "Nusamlatana", img: "assets/Nusamlatana.webp", rarity: 4 },
+            { id: 4, name: "Salindra", img: "assets/Salindra.webp", rarity: 5 },
+            { id: 5, name: "Suekaina", img: "assets/Suekaina.webp", rarity: 6 },
+            { id: 6, name: "Yommarat", img: "assets/Yommarat.webp", rarity: 7 },
+            { id: 7, name: "Kanar", img: "assets/Kanar.webp", rarity: 8 }
+        ];
 
         const ASSETS = {
-            npcs: [
-                'assets/Danduki.webp', 'assets/Gin.webp', 'assets/Kanar.webp', 
-                'assets/Nusamlatana.webp', 'assets/Salindra.webp', 'assets/Suekaina.webp', 
-                'assets/VillageElder.webp', 'assets/Yommarat.webp'
-            ],
+            npcs: NPC_DATA.map(n => n.img),
             gems: [
                 '<svg viewBox="0 0 10 10"><rect x="2" y="2" width="6" height="6" transform="rotate(45 5 5)" fill="#ff8888"/></svg>',
                 '<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" fill="#88ccff"/></svg>',
@@ -365,7 +420,10 @@
         let state = {
             player: { level: 1, xp: 0, dien: 0, lune: 0, ki: { unallocated: 0, attack: 0, defence: 0, kiStat: 0 } },
             rings: RINGS_DATA.map(r => ({ id: r.id, level: 0, unlocked: r.id === 0 })),
+            npcs: NPC_DATA.map(n => ({ id: n.id, level: 1 })),
             world: WORLD_DATA.map(w => ({ id: w.id, unlocked: false, lastCollect: 0 })),
+            towns: { rian: [], yereden: [] },
+            townsMeta: { rianLastCollect: 0, yeredenLastCollect: 0 },
             shop: { xpScroll: 0, dropScroll: 0 },
             settings: { music: true, sound: true }
         };
@@ -375,6 +433,7 @@
                 this.load();
                 
                 if(!state.townsMeta) state.townsMeta = { rianLastCollect: Date.now(), yeredenLastCollect: Date.now() };
+                if(!state.npcs) state.npcs = NPC_DATA.map(n => ({ id: n.id, level: 1 }));
 
                 grid.init();
                 ui.init();
@@ -425,10 +484,9 @@
 
                 this.addCurrency('dien', income);
                 
-                // AUTO COLLECT WORLD (With Orb Bonus)
+                // AUTO COLLECT WORLD
                 let orbLevel = state.rings[9].level; 
                 let orbWorldMult = 1 + (orbLevel * 0.5);
-
                 state.world.forEach((w, idx) => {
                     if(w.unlocked) {
                         const data = WORLD_DATA[idx];
@@ -503,31 +561,60 @@
                 ui.updateStats();
             },
 
+            getNPCUpgradeCost: function(id) {
+                const npc = state.npcs[id];
+                const data = NPC_DATA[id];
+                
+                let rarityMult = Math.pow(10, data.rarity - 1);
+                let levelMult = Math.pow(20, npc.level - 1); 
+                
+                if (levelMult === Infinity || rarityMult === Infinity) return { dien: Infinity, lune: Infinity };
+                
+                // 20x Easier Logic: Divide total cost by 20
+                let dienCost = (10000 * rarityMult * levelMult) / 20;
+                let luneCost = (1 * rarityMult * levelMult) / 20;
+                
+                return { dien: Math.floor(dienCost), lune: Math.ceil(luneCost) };
+            },
+
+            upgradeNPC: function(id) {
+                const npc = state.npcs[id];
+                const data = NPC_DATA[id];
+                const cost = this.getNPCUpgradeCost(id);
+                
+                if(npc.level >= 230) return;
+                
+                if(state.player.dien >= cost.dien && state.player.lune >= cost.lune) {
+                    state.player.dien -= cost.dien;
+                    state.player.lune -= cost.lune;
+                    npc.level++;
+
+                    // REWARD: Lune = Rarity
+                    let luneReward = data.rarity;
+                    this.addCurrency('lune', luneReward);
+
+                    game.playSound('upgrade');
+                    ui.notify(`${data.name} Lvl ${npc.level}! +${luneReward} Lune`, "gold");
+                    ui.renderNPCs();
+                    ui.updateStats();
+                }
+            },
+
             upgradeRing: function(id) {
                 const ring = state.rings[id];
                 const cost = this.getRingCost(id);
-                const canAfford = id === 9 
-                    ? (state.player.dien >= cost.dien && state.player.lune >= cost.lune)
-                    : (state.player.dien >= cost);
+                const canAfford = id === 9 ? (state.player.dien >= cost.dien && state.player.lune >= cost.lune) : (state.player.dien >= cost);
 
                 if(canAfford) {
                     if(id === 9) { state.player.dien -= cost.dien; state.player.lune -= cost.lune; }
                     else { state.player.dien -= cost; }
-                    
                     ring.level++;
                     ring.unlocked = true;
 
-                    // UPDATED XP FORMULA (No decay, strict rarity)
                     const data = RINGS_DATA[id];
-                    let rawXP = data.xpBase * ring.level;
-                    
-                    // Diminishing Returns for low rarity (optional based on your request: "Each upgrade of a less rare hai-ring should make the EXP gained less")
-                    // We apply a decay factor ONLY if it's a low-rarity ring (id < 5) to follow the instruction
-                    if(id < 5) {
-                        let decay = 1 + (ring.level * 0.05);
-                        rawXP = rawXP / decay;
-                    }
-
+                    let rarity = data.xpBase; 
+                    let diminish = 1 + (ring.level * 0.05); 
+                    let rawXP = (rarity * ring.level) / diminish;
                     let xpGain = Math.max(1, Math.floor(rawXP));
                     
                     this.addXP(xpGain, true);
@@ -538,9 +625,11 @@
                         let min = (id < 5) ? 1 : 20;
                         let max = (id < 5) ? 10 : 50;
                         let luneAmt = Math.floor(Math.random() * (max - min + 1)) + min;
+                        
                         this.addCurrency('lune', luneAmt);
                         ui.notify(`Lucky Upgrade! Found ${luneAmt} Lune!`, "cyan");
                     }
+
                     game.playSound('upgrade');
                     ui.renderRings();
                     ui.updateStats();
@@ -554,15 +643,12 @@
 
                 let affordableCount = 0;
                 let tempDien = state.player.dien;
-                
-                // Calc Max
                 for(let i=0; i<100; i++) {
-                    let raw = data.baseCost * Math.pow(1.18, ring.level + i);
-                    let disc = Math.pow(0.9, state.player.ki.kiStat);
-                    let final = raw * disc;
-                    if (tempDien >= final) { tempDien -= final; affordableCount++; } else break;
+                    let rawCost = data.baseCost * Math.pow(1.18, ring.level + i);
+                    let discount = Math.pow(0.9, state.player.ki.kiStat);
+                    let finalCost = rawCost * discount;
+                    if (tempDien >= finalCost) { tempDien -= finalCost; affordableCount++; } else break;
                 }
-
                 if (affordableCount > 0) this.performUpgradeBatch(id, affordableCount);
             },
 
@@ -578,11 +664,9 @@
                     ring.level++;
                     ring.unlocked = true;
 
-                    let rawXP = data.xpBase * ring.level;
-                    if(id < 5) {
-                        let decay = 1 + (ring.level * 0.05);
-                        rawXP = rawXP / decay;
-                    }
+                    let rarity = data.xpBase; 
+                    let diminish = 1 + (ring.level * 0.05); 
+                    let rawXP = (rarity * ring.level) / diminish;
                     let xpStep = Math.max(1, Math.floor(rawXP));
                     
                     totalXPGain += xpStep;
@@ -612,17 +696,10 @@
             getRingCost: function(id) {
                 const ring = state.rings[id];
                 const data = RINGS_DATA[id];
-                
-                // ORB COST SCALING: 2.5x per level
                 if(id === 9) {
                      let mult = Math.pow(2.5, ring.level);
-                     return { 
-                        dien: data.baseCost * mult, 
-                        lune: Math.floor(data.luneCost * mult) 
-                     };
+                     return { dien: data.baseCost * mult, lune: Math.floor(data.luneCost * mult) };
                 }
-                
-                // STANDARD: 1.18x per level
                 let cost = data.baseCost * Math.pow(1.18, ring.level);
                 let discount = Math.pow(0.9, state.player.ki.kiStat);
                 return cost * discount;
@@ -639,14 +716,33 @@
                 }
             },
 
+            collectWorld: function(idx) {
+                // Legacy support if needed, but now automated
+                const w = state.world[idx]; const data = WORLD_DATA[idx];
+                if(!w.unlocked) return;
+                const msPerUnit = (data.time * 60000) / data.passive; 
+                let elapsed = Date.now() - w.lastCollect;
+                let earned = Math.floor(elapsed / msPerUnit);
+                if(earned > 0) {
+                    this.addCurrency('lune', earned);
+                    w.lastCollect = Date.now();
+                    ui.notify(`Collected ${earned} Lune from ${data.name}`, "cyan");
+                    game.playSound('click'); 
+                    ui.renderWorld(true);
+                }
+            },
+
             buyShopItem: function(itemId) {
                 const item = SHOP_ITEMS.find(i => i.id === itemId);
                 const currentLvl = state.shop[itemId];
                 if(currentLvl >= 4) return;
                 const cost = item.costs[currentLvl];
                 if(state.player.lune >= cost) {
-                    state.player.lune -= cost; state.shop[itemId]++;
-                    game.playSound('upgrade'); ui.renderShop(); ui.updateStats();
+                    state.player.lune -= cost;
+                    state.shop[itemId]++;
+                    game.playSound('upgrade');
+                    ui.renderShop();
+                    ui.updateStats();
                 }
             },
 
@@ -657,6 +753,9 @@
                     const loaded = JSON.parse(saved);
                     if(!loaded.world || loaded.world.length !== WORLD_DATA.length) {
                         loaded.world = WORLD_DATA.map(w => ({ id: w.id, unlocked: false, lastCollect: 0 }));
+                    }
+                    if(!loaded.npcs || loaded.npcs.length !== NPC_DATA.length) {
+                        loaded.npcs = NPC_DATA.map(n => ({ id: n.id, level: 1 }));
                     }
                     state = { ...state, ...loaded };
                 }
@@ -769,7 +868,7 @@
             resetHintTimer: function() {
                 if(this.hintTimer) clearTimeout(this.hintTimer);
                 document.querySelectorAll('.hint').forEach(e => e.classList.remove('hint'));
-                this.hintTimer = setTimeout(() => this.showHint(), 10000); 
+                this.hintTimer = setTimeout(() => this.showHint(), 5000); 
             },
 
             showHint: function() {
@@ -898,9 +997,16 @@
                 let mult = (maxLen>=5?2.0:(maxLen===4?1.5:1.0));
                 let effect = (maxLen>=5?'match5':(maxLen===4?'match4':'match3'));
                 game.playSound(effect);
+                
+                // Get type of first tile for NPC bonus logic
+                let sampleKey = Array.from(unique)[0];
+                let [sx,sy] = sampleKey.split(',').map(Number);
+                let type = this.cells[sy][sx].type;
+                let npcLevel = (type !== -1 && state.npcs && state.npcs[type]) ? state.npcs[type].level : 1;
 
+                let rawXP = (5 * count * (maxLen>=5?3:(maxLen===4?2:1))) * npcLevel;
                 game.addCurrency('dien', 10 * count * mult);
-                game.addXP(5 * count * (maxLen>=5?3:(maxLen===4?2:1)));
+                game.addXP(rawXP);
 
                 let chance = (maxLen>=5?0.015:(maxLen===4?0.005:0.001));
                 if(state.shop.dropScroll > 0) chance *= (1 + SHOP_ITEMS[1].bonuses[state.shop.dropScroll-1]);
@@ -942,7 +1048,12 @@
                 for(let y=0; y<this.height; y++) {
                     for(let x=0; x<this.width; x++) {
                         const t = this.cells[y][x].type;
-                        if(t>=0) {
+                        if(t === -1) {
+                             this.cells[y][x].img.style.opacity = '0'; 
+                             this.cells[y][x].gem.style.opacity = '0';
+                        } else {
+                            this.cells[y][x].img.style.opacity = '1';
+                            this.cells[y][x].gem.style.opacity = '1';
                             this.cells[y][x].el.className = `tile npc-${t}`;
                             this.cells[y][x].img.src = ASSETS.npcs[t];
                             this.cells[y][x].gem.innerHTML = ASSETS.gems[t];
@@ -954,7 +1065,7 @@
 
         const ui = {
             init: function() {
-                this.updateStats(); this.updateKI(); this.renderRings(); this.renderWorld(); this.renderShop();
+                this.updateStats(); this.updateKI(); this.renderRings(); this.renderWorld(); this.renderShop(); this.renderNPCs();
             },
             switchTab: function(tab) {
                 document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
@@ -967,6 +1078,7 @@
                 if(state.player.level >= MAX_LEVEL) {
                     document.getElementById('ui-level').innerText = "MAX (230)";
                     document.getElementById('xp-bar').style.width = '100%';
+                    document.getElementById('xp-text').innerText = "MAX LEVEL";
                 } else {
                     document.getElementById('ui-level').innerText = state.player.level;
                     let req = Math.floor(250 * Math.pow(1.12, state.player.level - 1));
@@ -991,6 +1103,7 @@
 
                 this.renderRings(true);
                 this.renderShop(true);
+                this.renderNPCs(true);
                 this.updateKI();
                 this.renderWorld(true);
             },
@@ -1008,19 +1121,51 @@
                 document.getElementById('val-ki').innerText = `-${Math.floor(100-(100*Math.pow(0.9,k.kiStat)))}%`;
                 document.getElementById('bar-ki').style.width = (k.kiStat / MAX_KI_POINTS * 100) + '%';
             },
+            renderNPCs: function(updateOnly = false) {
+                const list = document.getElementById('npc-list');
+                if(!updateOnly) list.innerHTML = '';
+
+                state.npcs.forEach((npc, idx) => {
+                    const data = NPC_DATA[idx];
+                    const cost = game.getNPCUpgradeCost(idx);
+                    const canAfford = state.player.dien >= cost.dien && state.player.lune >= cost.lune;
+                    const isMax = npc.level >= 230;
+
+                    if(updateOnly) {
+                        const btn = document.getElementById(`btn-npc-${idx}`);
+                        if(btn) {
+                            btn.disabled = !canAfford || isMax;
+                            btn.innerText = isMax ? "MAXED" : "UPGRADE";
+                        }
+                        return;
+                    }
+
+                    let costTxt = isMax ? "Max Level" : `${Math.floor(cost.dien).toLocaleString()} D + ${Math.floor(cost.lune).toLocaleString()} L`;
+                    
+                    const div = document.createElement('div');
+                    div.className = 'rpg-card unlocked';
+                    div.innerHTML = `
+                        <img src="${data.img}" class="item-icon active" style="border-color:${['#ff4444','#4488ff','#44ff44','#aa44ff','#ffaa44','#44ffff','#ffff44','#ff44aa'][idx]};">
+                        <div style="flex:1">
+                            <div style="color:var(--border-gold); font-weight:bold;">${data.name}</div>
+                            <div style="font-size:0.8em; color:#888;">Rarity: ${data.rarity} | Level: ${npc.level}</div>
+                            <div style="font-size:0.8em; color:var(--dien-gold);">${costTxt}</div>
+                            <div style="font-size:0.7em; color:cyan;">Effect: ${npc.level}x Grid XP</div>
+                        </div>
+                        <button id="btn-npc-${idx}" class="rpg-btn" ${canAfford && !isMax ?'':'disabled'} onclick="game.upgradeNPC(${idx})">${isMax?'MAXED':'UPGRADE'}</button>
+                    `;
+                    list.appendChild(div);
+                });
+            },
             renderRings: function(updateOnly = false) {
                 const list = document.getElementById('rings-list');
                 if(!updateOnly) list.innerHTML = '';
-                
                 state.rings.forEach((r, idx) => {
                     const prevUnlocked = idx === 0 || state.rings[idx-1].level > 0;
                     if(!r.unlocked && !prevUnlocked) return;
-                    
                     const cost = game.getRingCost(idx);
                     const canAfford = idx===9 ? (state.player.dien>=cost.dien && state.player.lune>=cost.lune) : (state.player.dien>=cost);
-                    
                     const data = RINGS_DATA[idx];
-                    
                     let maxBuy = 0;
                     if (idx !== 9) { 
                         let tempDien = state.player.dien;
@@ -1031,43 +1176,26 @@
                             if(tempDien >= final) { tempDien -= final; maxBuy++; } else break;
                         }
                     }
-
                     if(updateOnly) {
-                        const btn = document.getElementById(`btn-ring-${idx}`);
-                        if(btn) btn.disabled = !canAfford;
-                        
-                        const btnMax = document.getElementById(`btn-max-${idx}`);
-                        if(btnMax) {
-                            btnMax.disabled = maxBuy === 0;
-                            btnMax.innerText = maxBuy > 0 ? `MAX X${maxBuy}` : "MAX";
-                        }
+                        const btn = document.getElementById(`btn-ring-${idx}`); if(btn) btn.disabled = !canAfford;
+                        const btnMax = document.getElementById(`btn-max-${idx}`); if(btnMax) { btnMax.disabled = maxBuy === 0; btnMax.innerText = maxBuy > 0 ? `MAX X${maxBuy}` : "MAX"; }
                         return;
                     }
-
                     const currentOut = r.level===0 ? 0 : data.baseOut * r.level * Math.pow(1.05, r.level);
                     const nextOut = data.baseOut * (r.level+1) * Math.pow(1.05, r.level+1);
                     const increase = nextOut - currentOut;
-
                     const div = document.createElement('div');
                     div.className = `rpg-card ${r.level>0?'unlocked':''}`;
-                    
                     let outText = "";
-                    if(r.level === 0 && idx !== 9) {
-                        outText = `Base: ${data.baseOut} /s`;
-                    } else if (idx !== 9) {
-                        outText = `Output: ${Math.floor(currentOut).toLocaleString()} /s <span style="color:var(--text-green)">(+${Math.floor(increase).toLocaleString()})</span>`;
-                    } else if (idx === 9) {
-                         outText = `Saviour Orb: 2x Global Multiplier`;
-                    }
-
+                    if(r.level === 0 && idx !== 9) outText = `Base: ${data.baseOut} /s`;
+                    else if (idx !== 9) outText = `Output: ${Math.floor(currentOut).toLocaleString()} /s <span style="color:var(--text-green)">(+${Math.floor(increase).toLocaleString()})</span>`;
+                    else if (idx === 9) outText = `Saviour Orb: 2x Global Multiplier`;
                     let btnHtml = `<button id="btn-ring-${idx}" class="rpg-btn" ${canAfford?'':'disabled'} onclick="game.upgradeRing(${idx})">${r.level===0?'UNLOCK':'UPGRADE'}</button>`;
-                    
                     if(r.level > 0 && idx !== 9) {
                         let maxLabel = maxBuy > 0 ? `MAX X${maxBuy}` : "MAX";
                         let maxDisabled = maxBuy === 0 ? 'disabled' : '';
                         btnHtml += `<button id="btn-max-${idx}" class="rpg-btn" ${maxDisabled} onclick="game.upgradeRingMax(${idx})">${maxLabel}</button>`;
                     }
-
                     div.innerHTML = `
                         <img src="${data.img}" class="item-icon ${r.level>0?'active':''}">
                         <div style="flex:1">
@@ -1076,9 +1204,7 @@
                             <div style="font-size:0.8em; color:var(--dien-gold);">${idx===9?`${cost.dien.toLocaleString()} D + ${cost.lune} L`:Math.floor(cost).toLocaleString() + ' Dien'}</div>
                             <div style="font-size:0.75em; margin-top:2px;">${outText}</div>
                         </div>
-                        <div class="btn-col">
-                            ${btnHtml}
-                        </div>
+                        <div class="btn-col">${btnHtml}</div>
                     `;
                     list.appendChild(div);
                 });
@@ -1086,18 +1212,11 @@
             renderShop: function(updateOnly = false) {
                 const list = document.getElementById('shop-list');
                 if(!updateOnly) list.innerHTML = '';
-
                 SHOP_ITEMS.forEach(item => {
                     const lvl = state.shop[item.id];
                     const cost = item.costs[lvl] || 0;
                     const canAfford = lvl<4 && state.player.lune >= cost;
-                    
-                    if(updateOnly) {
-                        const btn = document.getElementById(`btn-shop-${item.id}`);
-                        if(btn) btn.disabled = !canAfford || lvl >= 4;
-                        return;
-                    }
-
+                    if(updateOnly) { const btn = document.getElementById(`btn-shop-${item.id}`); if(btn) btn.disabled = !canAfford || lvl >= 4; return; }
                     const div = document.createElement('div');
                     div.className = 'rpg-card';
                     div.innerHTML = `

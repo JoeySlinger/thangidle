@@ -137,14 +137,7 @@
         .ap-bar-fill { height: 100%; background: cyan; width: 0%; transition: width 0.1s linear; }
         .ap-btn { font-size: 10px; padding: 4px 8px; background: #333; border: 1px solid #555; color: white; cursor: pointer; transition: 0.2s; }
         .ap-btn:disabled { opacity: 0.3; cursor: not-allowed; background: #111; color: #555; box-shadow: none; border-color: #333; animation: none; }
-        
-        /* Glowing Animation for Affordable Button */
-        .ap-btn.can-afford {
-            border-color: var(--border-highlight);
-            color: var(--border-highlight);
-            box-shadow: 0 0 10px var(--border-highlight);
-            animation: pulseBtn 1.5s infinite alternate;
-        }
+        .ap-btn.can-afford { border-color: var(--border-highlight); color: var(--border-highlight); box-shadow: 0 0 10px var(--border-highlight); animation: pulseBtn 1.5s infinite alternate; }
         @keyframes pulseBtn { from { box-shadow: 0 0 5px var(--border-highlight); } to { box-shadow: 0 0 15px var(--border-highlight); } }
 
         /* KI PANEL */
@@ -179,7 +172,7 @@
         .time-bar-bg { width: 100%; height: 6px; background: #000; border: 1px solid #555; border-radius: 3px; margin-top: 5px; }
         .time-bar-fill { height: 100%; width: 0%; background: var(--lune-blue); transition: width 0.5s; }
 
-        /* VOXEL ART UPDATED */
+        /* VOXEL ART */
         .voxel-container {
             min-width: 80px;
             height: 100px;
@@ -215,10 +208,6 @@
             margin-bottom: -5px;
         }
         
-        /* PASSIVE BAR */
-        .passive-bar-bg { width: 100%; height: 6px; background: #000; border: 1px solid #555; margin-top: 5px; border-radius: 3px; }
-        .passive-bar-fill { height: 100%; background: var(--lune-blue); width: 0%; transition: width 0.5s; }
-
         /* FOOTER */
         #footer { position: fixed; bottom: 0; width: 100%; height: 70px; background: #111; border-top: 2px solid var(--border-gold); display: flex; z-index: 100; }
         .nav-btn { flex: 1; background: #151515; border: none; color: #666; font-family: 'Cinzel', serif; font-size: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; position: relative; }
@@ -247,7 +236,7 @@
     </div>
 
     <!-- AUDIO -->
-    <audio id="bgm" loop><source src="assets/thema.mp3" type="audio/mpeg"></audio>
+    <audio id="bgm" src="assets/thema.mp3" loop></audio>
 
     <div id="header">
         <div>
@@ -524,12 +513,15 @@
 
                 this.addCurrency('dien', income);
                 
+                // AUTO COLLECT WORLD
                 let orbLevel = state.rings[9].level; 
                 let orbWorldMult = 1 + (orbLevel * 0.5);
+                let orbSpeedMult = 1 + (orbLevel * 0.5);
+
                 state.world.forEach((w, idx) => {
                     if(w.unlocked) {
                         const data = WORLD_DATA[idx];
-                        const duration = data.time * 60000;
+                        const duration = (data.time * 60000) / orbSpeedMult;
                         if(Date.now() - w.lastCollect >= duration) {
                             let earned = Math.floor(data.passive * orbWorldMult);
                             this.addCurrency('lune', earned);
@@ -699,7 +691,7 @@
                 
                 if (levelMult === Infinity || rarityMult === Infinity) return { dien: Infinity, lune: Infinity };
                 
-                // 100x Easier Logic: Divide total cost by 100 (Base Cost ~100 Dien)
+                // 100x Easier Logic: Divide total cost by 100
                 let dienCost = (10000 * rarityMult * levelMult) / 100;
                 let luneCost = (1 * rarityMult * levelMult) / 100;
                 
@@ -718,7 +710,7 @@
                     state.player.lune -= cost.lune;
                     npc.level++;
 
-                    // REWARD: Lune = Rarity * 4 (Doubled from previous x2)
+                    // REWARD: Lune = Rarity * 4 (Doubled)
                     let luneReward = data.rarity * 4;
                     this.addCurrency('lune', luneReward);
 
@@ -846,6 +838,7 @@
             },
 
             collectWorld: function(idx) {
+                // Legacy support if needed, but now automated
                 const w = state.world[idx]; const data = WORLD_DATA[idx];
                 if(!w.unlocked) return;
                 const msPerUnit = (data.time * 60000) / data.passive; 
@@ -960,100 +953,47 @@
                 this.resetHintTimer();
             },
 
-            // SMART FIND BEST MOVE (Scanning all possible swaps for highest score)
-            findBestMove: function() {
-                let bestMove = null;
-                let bestScore = 0;
-                
-                // Helper to get score of a potential match
-                const getMatchScore = (grid, r, c) => {
-                    let type = grid[r][c];
-                    if (type === -1) return 0;
-                    
-                    // Check Horiz
-                    let h = 1;
-                    let i = 1; while (c - i >= 0 && grid[r][c - i] === type) { h++; i++; }
-                    i = 1; while (c + i < this.width && grid[r][c + i] === type) { h++; i++; }
-                    
-                    // Check Vert
-                    let v = 1;
-                    i = 1; while (r - i >= 0 && grid[r - i][c] === type) { v++; i++; }
-                    i = 1; while (r + i < this.height && grid[r + i][c] === type) { v++; i++; }
-                    
-                    let score = 0;
-                    if(h >= 3) score += (h === 3 ? 1 : (h === 4 ? 2 : 3));
-                    if(v >= 3) score += (v === 3 ? 1 : (v === 4 ? 2 : 3));
-                    return score;
-                };
-
-                // Iterate Horizontal Swaps
-                for(let r=0; r<this.height; r++) {
-                    for(let c=0; c<this.width-1; c++) {
-                        // Simulate swap r,c <-> r,c+1
-                        let t1 = this.cells[r][c].type;
-                        let t2 = this.cells[r][c+1].type;
-                        
-                        // Create temp grid representation
-                        let tempGrid = this.cells.map(row => row.map(cell => cell.type));
-                        
-                        // Perform Swap in temp
-                        tempGrid[r][c] = t2;
-                        tempGrid[r][c+1] = t1;
-                        
-                        // Calculate Score
-                        let score = 0;
-                        // Check scan around affected area (r, c) and (r, c+1)
-                        // Simplifying: scan line
-                        score += getMatchScore(tempGrid, r, c);
-                        score += getMatchScore(tempGrid, r, c+1);
-                        
-                        if(score > bestScore) {
-                            bestScore = score;
-                            bestMove = {x1:c, y1:r, x2:c+1, y2:r};
-                        }
-                    }
-                }
-
-                // Iterate Vertical Swaps
-                for(let r=0; r<this.height-1; r++) {
-                    for(let c=0; c<this.width; c++) {
-                         // Simulate swap r,c <-> r+1,c
-                        let t1 = this.cells[r][c].type;
-                        let t2 = this.cells[r+1][c].type;
-                        
-                        let tempGrid = this.cells.map(row => row.map(cell => cell.type));
-                        
-                        tempGrid[r][c] = t2;
-                        tempGrid[r+1][c] = t1;
-                        
-                        let score = 0;
-                        score += getMatchScore(tempGrid, r, c);
-                        score += getMatchScore(tempGrid, r+1, c);
-                        
-                        if(score > bestScore) {
-                            bestScore = score;
-                            bestMove = {x1:c, y1:r, x2:c, y2:r+1};
-                        }
-                    }
-                }
-
-                return bestMove;
-            },
-            
-            // Basic check for existence (for reshuffle logic)
             hasPossibleMove: function() {
-                // Re-use findBestMove for simplicity, if it returns non-null, we have a move
-                return this.findBestMove() !== null;
+                let temp = this.cells.map(row => row.map(c => c.type));
+                const check = (arr) => {
+                    for(let y=0; y<this.height; y++) {
+                        for(let x=0; x<this.width-2; x++) {
+                            if(arr[y][x] !== -1 && arr[y][x] == arr[y][x+1] && arr[y][x] == arr[y][x+2]) return true;
+                        }
+                    }
+                    for(let x=0; x<this.width; x++) {
+                        for(let y=0; y<this.height-2; y++) {
+                            if(arr[y][x] !== -1 && arr[y][x] == arr[y+1][x] && arr[y][x] == arr[y+2][x]) return true;
+                        }
+                    }
+                    return false;
+                }
+
+                for(let y=0; y<this.height; y++) {
+                    for(let x=0; x<this.width-1; x++) {
+                        let t = temp[y][x]; temp[y][x] = temp[y][x+1]; temp[y][x+1] = t;
+                        if(check(temp)) return {x1:x, y1:y, x2:x+1, y2:y}; 
+                        t = temp[y][x]; temp[y][x] = temp[y][x+1]; temp[y][x+1] = t;
+                    }
+                }
+                for(let x=0; x<this.width; x++) {
+                    for(let y=0; y<this.height-1; y++) {
+                        let t = temp[y][x]; temp[y][x] = temp[y+1][x]; temp[y+1][x] = t;
+                        if(check(temp)) return {x1:x, y1:y, x2:x, y2:y+1};
+                        t = temp[y][x]; temp[y][x] = temp[y+1][x]; temp[y+1][x] = t;
+                    }
+                }
+                return false;
             },
 
             resetHintTimer: function() {
                 if(this.hintTimer) clearTimeout(this.hintTimer);
                 document.querySelectorAll('.hint').forEach(e => e.classList.remove('hint'));
-                this.hintTimer = setTimeout(() => this.showHint(), 10000); 
+                this.hintTimer = setTimeout(() => this.showHint(), 5000); 
             },
 
             showHint: function() {
-                const move = this.findBestMove();
+                const move = this.hasPossibleMove();
                 if(move) {
                     this.cells[move.y1][move.x1].el.classList.add('hint');
                     this.cells[move.y2][move.x2].el.classList.add('hint');
@@ -1065,7 +1005,6 @@
             handleInputStart: function(e) {
                 const target = e.target.closest('.tile');
                 if(!target) return;
-                lastInteraction = Date.now(); 
                 this.resetHintTimer(); 
                 e.preventDefault(); 
                 const x = parseInt(target.dataset.x);
@@ -1124,33 +1063,15 @@
             },
 
             attemptSwap: async function(x1, y1, x2, y2) {
-                lastInteraction = Date.now();
                 game.playSound('move');
                 let t = this.cells[y1][x1].type;
                 this.cells[y1][x1].type = this.cells[y2][x2].type;
                 this.cells[y2][x2].type = t;
                 this.updateVisuals();
 
-                // Check logic
-                let tempGrid = this.cells.map(r => r.map(c => c.type));
-                
-                const check = (r, c) => {
-                    let t = tempGrid[r][c];
-                    if(t === -1) return false;
-                    // Horiz
-                    let h = 1;
-                    let i = 1; while(c-i>=0 && tempGrid[r][c-i]===t) {h++; i++;}
-                    i = 1; while(c+i<this.width && tempGrid[r][c+i]===t) {h++; i++;}
-                    // Vert
-                    let v = 1;
-                    i = 1; while(r-i>=0 && tempGrid[r-i][c]===t) {v++; i++;}
-                    i = 1; while(r+i<this.height && tempGrid[r+i][c]===t) {v++; i++;}
-                    return h>=3 || v>=3;
-                };
-
-                if(check(y1, x1) || check(y2, x2)) {
-                     const matches = this.findMatches();
-                     await this.processMatches(matches);
+                const matches = this.findMatches();
+                if(matches.length > 0) {
+                    await this.processMatches(matches);
                 } else {
                     t = this.cells[y1][x1].type;
                     this.cells[y1][x1].type = this.cells[y2][x2].type;
@@ -1358,7 +1279,6 @@
 
                     let costTxt = isMax ? "Max Level" : `${Math.floor(cost.dien).toLocaleString()} D + ${Math.floor(cost.lune).toLocaleString()} L`;
                     
-                    // Calculate display multiplier
                     let effectMult = (npc.level * 0.5 + 0.5) * (data.rarity * 0.5 + 0.5);
                     if (effectMult < 1) effectMult = 1;
 

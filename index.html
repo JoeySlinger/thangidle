@@ -135,19 +135,17 @@
         .ap-info { font-size: 10px; color: #aaa; flex: 1; margin-right: 10px; }
         .ap-bar-container { flex: 2; height: 6px; background: #000; border: 1px solid #555; position: relative; margin-right: 10px; }
         .ap-bar-fill { height: 100%; background: cyan; width: 0%; transition: width 0.1s linear; }
-        .ap-btn { 
-            font-size: 10px; padding: 4px 8px; 
-            background: #333; border: 1px solid #555; color: #888; 
-            cursor: pointer; font-weight: bold;
-            transition: all 0.3s;
-        }
-        .ap-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .ap-btn.glow-active {
+        .ap-btn { font-size: 10px; padding: 4px 8px; background: #333; border: 1px solid #555; color: white; cursor: pointer; transition: 0.2s; }
+        .ap-btn:disabled { opacity: 0.3; cursor: not-allowed; background: #111; color: #555; box-shadow: none; border-color: #333; animation: none; }
+        
+        /* Glowing Animation for Affordable Button */
+        .ap-btn.can-afford {
             border-color: var(--border-highlight);
-            color: var(--border-gold);
+            color: var(--border-highlight);
             box-shadow: 0 0 10px var(--border-highlight);
-            background: #443300;
+            animation: pulseBtn 1.5s infinite alternate;
         }
+        @keyframes pulseBtn { from { box-shadow: 0 0 5px var(--border-highlight); } to { box-shadow: 0 0 15px var(--border-highlight); } }
 
         /* KI PANEL */
         #ki-panel { width: min(90vw, 60vh); margin-top: 15px; background: linear-gradient(to right, #1a1a20, #25252e); padding: 15px; border: 1px solid #444; border-left: 4px solid var(--border-gold); box-shadow: 0 5px 10px rgba(0,0,0,0.5); }
@@ -471,6 +469,7 @@
         var game = {
             init: function() {
                 this.load();
+                
                 if(!state.townsMeta) state.townsMeta = { rianLastCollect: Date.now(), yeredenLastCollect: Date.now() };
                 if(!state.npcs) state.npcs = NPC_DATA.map(n => ({ id: n.id, level: 1 }));
                 if(!state.autoPlay) state.autoPlay = { unlocked: false, level: 1, lastMove: 0 };
@@ -490,19 +489,39 @@
 
             start: function(e) {
                 if(e) e.stopPropagation();
-                try { Synth.init(); if(Synth.ctx && Synth.ctx.state === 'suspended') Synth.ctx.resume(); } catch(e) {}
-                document.getElementById('start-overlay').style.display = 'none';
+                
+                try {
+                    Synth.init();
+                    if(Synth.ctx && Synth.ctx.state === 'suspended') Synth.ctx.resume();
+                } catch(e) {}
+
+                const overlay = document.getElementById('start-overlay');
+                if(overlay) {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => overlay.style.display = 'none', 500);
+                }
+
                 if(state.settings.music) {
                     const bgm = document.getElementById('bgm');
-                    if(bgm) { bgm.volume = 0.5; bgm.loop = true; bgm.play().catch(e => {}); }
+                    if(bgm) {
+                        bgm.volume = 0.5; 
+                        bgm.loop = true;
+                        bgm.play().catch(e => { console.log("Audio blocked - click again to play later"); });
+                    }
                 }
             },
 
             tick: function() {
                 let income = 0;
-                state.rings.forEach(r => { if(r.level > 0 && r.id < 9) income += RINGS_DATA[r.id].baseOut * r.level * Math.pow(1.05, r.level); });
+                state.rings.forEach(r => {
+                    if(r.level > 0 && r.id < 9) {
+                        const data = RINGS_DATA[r.id];
+                        income += data.baseOut * r.level * Math.pow(1.05, r.level);
+                    }
+                });
                 income *= (1 + (state.player.ki.attack * 0.1));
                 if(state.rings[9].unlocked) income *= 2.0;
+
                 this.addCurrency('dien', income);
                 
                 let orbLevel = state.rings[9].level; 
@@ -519,6 +538,7 @@
                         }
                     }
                 });
+
                 ui.updateStats(income);
             },
 
@@ -526,6 +546,7 @@
                 const apInfo = document.getElementById('ap-status');
                 const apBar = document.getElementById('ap-bar');
                 const apBtn = document.getElementById('btn-autoplay-up');
+                
                 if(!state.autoPlay.unlocked) {
                     if(apInfo) apInfo.innerText = "Auto-Play: Locked";
                     if(apBar) apBar.style.width = "0%";
@@ -533,33 +554,31 @@
                          apBtn.innerText = "UNLOCK (100M D + 1K L)";
                          let can = state.player.dien >= 100000000 && state.player.lune >= 1000;
                          apBtn.disabled = !can;
-                         apBtn.classList.toggle('glow-active', can);
+                         if(can) apBtn.classList.add('can-afford'); else apBtn.classList.remove('can-afford');
                     }
                     return;
                 }
 
                 let costMult = Math.pow(1000, state.autoPlay.level); 
-                let costDien = 100000000 * costMult; 
-                let costLune = 1000 * costMult; 
+                let costDien = 100000000 * costMult;
+                let costLune = 1000 * costMult;
                 let isMax = state.autoPlay.level >= 10;
                 
                 if(apBtn) {
-                    if(isMax) { apBtn.innerText = "MAX LEVEL"; apBtn.disabled = true; apBtn.classList.remove('glow-active'); }
-                    else {
+                    if(isMax) { 
+                        apBtn.innerText = "MAX LEVEL"; 
+                        apBtn.disabled = true; 
+                        apBtn.classList.remove('can-afford');
+                    } else {
                         apBtn.innerText = `LVL UP (${state.autoPlay.level}/10)`;
                         let can = state.player.dien >= costDien && state.player.lune >= costLune;
                         apBtn.disabled = !can;
-                        apBtn.classList.toggle('glow-active', can);
+                        if(can) apBtn.classList.add('can-afford'); else apBtn.classList.remove('can-afford');
                     }
                 }
 
-                let interval = 60000 - ((state.autoPlay.level - 1) * 10000);
-                if(state.autoPlay.level >= 7) {
-                    if(state.autoPlay.level == 7) interval = 5000;
-                    if(state.autoPlay.level == 8) interval = 3000;
-                    if(state.autoPlay.level == 9) interval = 2000;
-                    if(state.autoPlay.level == 10) interval = 1000;
-                }
+                let interval = (60000 - ((state.autoPlay.level - 1) * 6000)) / 5; 
+                if(state.autoPlay.level >= 10) interval = 200;
 
                 if(Date.now() - lastInteraction < 2000) {
                      if(apInfo) apInfo.innerText = "Auto-Play: Paused (Player Active)";
@@ -577,26 +596,39 @@
                 if(elapsed >= interval) {
                     state.autoPlay.lastMove = Date.now();
                     let move = grid.findBestMove();
-                    if(move) grid.attemptSwap(move.x1, move.y1, move.x2, move.y2);
-                    else grid.createBoard(); 
+                    if(move) {
+                        grid.attemptSwap(move.x1, move.y1, move.x2, move.y2);
+                    } else {
+                        grid.createBoard(); 
+                    }
                 }
             },
 
             upgradeAutoPlay: function() {
                 if(!state.autoPlay.unlocked) {
                      if(state.player.dien >= 100000000 && state.player.lune >= 1000) {
-                         state.player.dien -= 100000000; state.player.lune -= 1000;
-                         state.autoPlay.unlocked = true; state.autoPlay.lastMove = Date.now();
-                         game.playSound('upgrade'); ui.updateStats();
+                         state.player.dien -= 100000000;
+                         state.player.lune -= 1000;
+                         state.autoPlay.unlocked = true;
+                         state.autoPlay.lastMove = Date.now();
+                         game.playSound('upgrade');
+                         ui.updateStats();
                      }
                      return;
                 }
+                
                 if(state.autoPlay.level >= 10) return;
+                
                 let costMult = Math.pow(1000, state.autoPlay.level); 
-                let costDien = 100000000 * costMult; let costLune = 1000 * costMult;
+                let costDien = 100000000 * costMult;
+                let costLune = 1000 * costMult;
+                
                 if(state.player.dien >= costDien && state.player.lune >= costLune) {
-                    state.player.dien -= costDien; state.player.lune -= costLune;
-                    state.autoPlay.level++; game.playSound('upgrade'); ui.updateStats();
+                    state.player.dien -= costDien;
+                    state.player.lune -= costLune;
+                    state.autoPlay.level++;
+                    game.playSound('upgrade');
+                    ui.updateStats();
                 }
             },
 
@@ -607,26 +639,39 @@
 
             addXP: function(amount, suppressNotify = false) {
                 if(state.player.level >= MAX_LEVEL) return;
+                
                 let mod = 1 + (state.player.ki.defence * 0.1);
                 const scrollLvl = state.shop.xpScroll;
                 if(scrollLvl > 0) mod += SHOP_ITEMS[0].bonuses[scrollLvl-1];
                 let final = Math.floor(amount * mod);
                 state.player.xp += final;
-                if(!suppressNotify && final > 0) ui.notify(`+${final.toLocaleString()} XP`, "#4caf50");
+                
+                if(!suppressNotify && final > 0) {
+                    ui.notify(`+${final.toLocaleString()} XP`, "#4caf50");
+                }
+                
                 this.checkLevelUp();
             },
 
             checkLevelUp: function() {
                 if(state.player.level >= MAX_LEVEL) return;
+
                 let required = Math.floor(250 * Math.pow(1.12, state.player.level - 1));
                 if(state.player.xp >= required) {
                     state.player.xp -= required;
                     state.player.level++;
+                    
                     let points = (state.player.level % 5 === 0) ? 5 : 3;
                     state.player.ki.unallocated += points;
-                    if(state.player.level % 10 === 0) { ui.notify("New Town Buildings Available!", "cyan"); ui.renderWorld(); }
+                    
+                    if(state.player.level % 10 === 0) {
+                        ui.notify("New Town Buildings Available!", "cyan");
+                        ui.renderWorld();
+                    }
                     ui.notify(`Level Up! Rank ${state.player.level}`);
+                    
                     ui.updateKI();
+
                     if(state.player.level < MAX_LEVEL) this.checkLevelUp();
                     game.playSound('upgrade');
                 }
@@ -634,18 +679,27 @@
             },
 
             adjustKI: function(stat, delta) {
-                if(delta > 0 && state.player.ki.unallocated > 0) { state.player.ki[stat]++; state.player.ki.unallocated--; }
-                else if (delta < 0 && state.player.ki[stat] > 0) { state.player.ki[stat]--; state.player.ki.unallocated++; }
-                ui.updateKI(); ui.updateStats();
+                if(delta > 0 && state.player.ki.unallocated > 0) {
+                    state.player.ki[stat]++;
+                    state.player.ki.unallocated--;
+                } else if (delta < 0 && state.player.ki[stat] > 0) {
+                    state.player.ki[stat]--;
+                    state.player.ki.unallocated++;
+                }
+                ui.updateKI();
+                ui.updateStats();
             },
 
             getNPCUpgradeCost: function(id) {
                 const npc = state.npcs[id];
                 const data = NPC_DATA[id];
+                
                 let rarityMult = Math.pow(10, data.rarity - 1);
                 let levelMult = Math.pow(20, npc.level - 1); 
+                
                 if (levelMult === Infinity || rarityMult === Infinity) return { dien: Infinity, lune: Infinity };
                 
+                // 100x Easier Logic: Divide total cost by 100 (Base Cost ~100 Dien)
                 let dienCost = (10000 * rarityMult * levelMult) / 100;
                 let luneCost = (1 * rarityMult * levelMult) / 100;
                 
@@ -656,17 +710,22 @@
                 const npc = state.npcs[id];
                 const data = NPC_DATA[id];
                 const cost = this.getNPCUpgradeCost(id);
+                
                 if(npc.level >= 230) return;
+                
                 if(state.player.dien >= cost.dien && state.player.lune >= cost.lune) {
-                    state.player.dien -= cost.dien; state.player.lune -= cost.lune;
+                    state.player.dien -= cost.dien;
+                    state.player.lune -= cost.lune;
                     npc.level++;
-                    
-                    let luneReward = data.rarity * 2;
+
+                    // REWARD: Lune = Rarity * 4 (Doubled from previous x2)
+                    let luneReward = data.rarity * 4;
                     this.addCurrency('lune', luneReward);
-                    
+
                     game.playSound('upgrade');
                     ui.notify(`${data.name} Lvl ${npc.level}! +${luneReward} Lune`, "gold");
-                    ui.renderNPCs(); ui.updateStats();
+                    ui.renderNPCs();
+                    ui.updateStats();
                 }
             },
 
@@ -674,68 +733,131 @@
                 const ring = state.rings[id];
                 const cost = this.getRingCost(id);
                 const canAfford = id === 9 ? (state.player.dien >= cost.dien && state.player.lune >= cost.lune) : (state.player.dien >= cost);
+
                 if(canAfford) {
-                    if(id === 9) { state.player.dien -= cost.dien; state.player.lune -= cost.lune; } else state.player.dien -= cost;
-                    ring.level++; ring.unlocked = true;
+                    if(id === 9) { state.player.dien -= cost.dien; state.player.lune -= cost.lune; }
+                    else { state.player.dien -= cost; }
+                    ring.level++;
+                    ring.unlocked = true;
+
                     const data = RINGS_DATA[id];
-                    let rawXP = data.xpBase * ring.level;
-                    if(id < 5) { let decay = 1 + (ring.level * 0.05); rawXP = rawXP / decay; }
+                    let rarity = data.xpBase; 
+                    let diminish = 1 + (ring.level * 0.05); 
+                    let rawXP = (rarity * ring.level) / diminish;
                     let xpGain = Math.max(1, Math.floor(rawXP));
-                    this.addXP(xpGain, true); ui.notify(`Upgraded! +${xpGain} EXP`, "#4caf50");
-                    if(Math.random() < (0.001 + id * 0.001)) {
-                        let luneAmt = Math.floor(Math.random() * ( (id<5?10:50) - (id<5?1:20) + 1 )) + (id<5?1:20);
-                        this.addCurrency('lune', luneAmt); ui.notify(`Lucky Upgrade! Found ${luneAmt} Lune!`, "cyan");
+                    
+                    this.addXP(xpGain, true);
+                    ui.notify(`Upgraded! +${xpGain} EXP`, "#4caf50");
+
+                    let chance = 0.001 + (id * 0.001); 
+                    if(Math.random() < chance) {
+                        let min = (id < 5) ? 1 : 20;
+                        let max = (id < 5) ? 10 : 50;
+                        let luneAmt = Math.floor(Math.random() * (max - min + 1)) + min;
+                        
+                        this.addCurrency('lune', luneAmt);
+                        ui.notify(`Lucky Upgrade! Found ${luneAmt} Lune!`, "cyan");
                     }
-                    game.playSound('upgrade'); ui.renderRings(); ui.updateStats();
+
+                    game.playSound('upgrade');
+                    ui.renderRings();
+                    ui.updateStats();
                 }
             },
 
             upgradeRingMax: function(id) {
-                const ring = state.rings[id]; const data = RINGS_DATA[id];
+                const ring = state.rings[id];
+                const data = RINGS_DATA[id];
                 if (id === 9) { this.upgradeRing(id); return; }
-                let count = 0; let tempDien = state.player.dien;
+
+                let affordableCount = 0;
+                let tempDien = state.player.dien;
                 for(let i=0; i<100; i++) {
-                    let cost = data.baseCost * Math.pow(1.18, ring.level + i) * Math.pow(0.9, state.player.ki.kiStat);
-                    if (tempDien >= cost) { tempDien -= cost; count++; } else break;
+                    let rawCost = data.baseCost * Math.pow(1.18, ring.level + i);
+                    let discount = Math.pow(0.9, state.player.ki.kiStat);
+                    let finalCost = rawCost * discount;
+                    if (tempDien >= finalCost) { tempDien -= finalCost; affordableCount++; } else break;
                 }
-                if (count > 0) this.performUpgradeBatch(id, count);
+                if (affordableCount > 0) this.performUpgradeBatch(id, affordableCount);
             },
 
             performUpgradeBatch: function(id, count) {
-                const ring = state.rings[id]; const data = RINGS_DATA[id];
-                let totalXPGain = 0; let totalLuneFound = 0;
+                const ring = state.rings[id];
+                const data = RINGS_DATA[id];
+                let totalXPGain = 0;
+                let totalLuneFound = 0;
+                
                 for(let i=0; i<count; i++) {
-                    const cost = this.getRingCost(id); state.player.dien -= cost; 
-                    ring.level++; ring.unlocked = true;
-                    let rawXP = data.xpBase * ring.level;
-                    if(id < 5) { let decay = 1 + (ring.level * 0.05); rawXP = rawXP / decay; }
-                    totalXPGain += Math.max(1, Math.floor(rawXP));
-                    if(Math.random() < (0.001 + id*0.001)) totalLuneFound += (id < 5 ? Math.floor(Math.random()*10)+1 : Math.floor(Math.random()*31)+20);
+                    const cost = this.getRingCost(id);
+                    state.player.dien -= cost; 
+                    ring.level++;
+                    ring.unlocked = true;
+
+                    let rarity = data.xpBase; 
+                    let diminish = 1 + (ring.level * 0.05); 
+                    let rawXP = (rarity * ring.level) / diminish;
+                    let xpStep = Math.max(1, Math.floor(rawXP));
+                    
+                    totalXPGain += xpStep;
+
+                    let chance = 0.001 + (id * 0.001); 
+                    if(Math.random() < chance) {
+                        let min = (id < 5) ? 1 : 20;
+                        let max = (id < 5) ? 10 : 50;
+                        totalLuneFound += Math.floor(Math.random() * (max - min + 1)) + min;
+                    }
                 }
+                
                 this.addXP(totalXPGain, true); 
-                if(totalLuneFound > 0) { this.addCurrency('lune', totalLuneFound); ui.notify(`Batch complete! +${totalXPGain} XP, Found ${totalLuneFound} Lune!`, "cyan"); }
-                else ui.notify(`Upgraded x${count}! +${totalXPGain} XP`, "#4caf50");
-                this.checkLevelUp(); game.playSound('upgrade'); ui.renderRings(); ui.updateStats();
+
+                if(totalLuneFound > 0) {
+                    this.addCurrency('lune', totalLuneFound);
+                    ui.notify(`Batch complete! +${totalXPGain} EXP, Found ${totalLuneFound} Lune!`, "cyan");
+                } else {
+                    ui.notify(`Upgraded x${count}! +${totalXPGain} EXP`, "#4caf50");
+                }
+                this.checkLevelUp();
+                game.playSound('upgrade');
+                ui.renderRings();
+                ui.updateStats();
             },
 
             getRingCost: function(id) {
-                const ring = state.rings[id]; const data = RINGS_DATA[id];
-                if(id === 9) { let mult = Math.pow(2.5, ring.level); return { dien: data.baseCost * mult, lune: Math.floor(data.luneCost * mult) }; }
-                return data.baseCost * Math.pow(1.18, ring.level) * Math.pow(0.9, state.player.ki.kiStat);
+                const ring = state.rings[id];
+                const data = RINGS_DATA[id];
+                if(id === 9) {
+                     let mult = Math.pow(2.5, ring.level);
+                     return { dien: data.baseCost * mult, lune: Math.floor(data.luneCost * mult) };
+                }
+                let cost = data.baseCost * Math.pow(1.18, ring.level);
+                let discount = Math.pow(0.9, state.player.ki.kiStat);
+                return cost * discount;
             },
 
             unlockWorld: function(idx) {
                 const w = state.world[idx]; const data = WORLD_DATA[idx];
                 if(state.player.level < data.lvl) return;
                 if(state.player.dien >= data.cost && state.player.lune >= (data.lune || 0)) {
-                    state.player.dien -= data.cost; state.player.lune -= (data.lune || 0);
+                    state.player.dien -= data.cost;
+                    state.player.lune -= (data.lune || 0);
                     w.unlocked = true; w.lastCollect = Date.now();
                     game.playSound('upgrade'); ui.renderWorld(); ui.updateStats();
                 }
             },
 
             collectWorld: function(idx) {
-                // Auto collect logic handles this
+                const w = state.world[idx]; const data = WORLD_DATA[idx];
+                if(!w.unlocked) return;
+                const msPerUnit = (data.time * 60000) / data.passive; 
+                let elapsed = Date.now() - w.lastCollect;
+                let earned = Math.floor(elapsed / msPerUnit);
+                if(earned > 0) {
+                    this.addCurrency('lune', earned);
+                    w.lastCollect = Date.now();
+                    ui.notify(`Collected ${earned} Lune from ${data.name}`, "cyan");
+                    game.playSound('click'); 
+                    ui.renderWorld(true);
+                }
             },
 
             buyShopItem: function(itemId) {
@@ -744,8 +866,11 @@
                 if(currentLvl >= 4) return;
                 const cost = item.costs[currentLvl];
                 if(state.player.lune >= cost) {
-                    state.player.lune -= cost; state.shop[itemId]++;
-                    game.playSound('upgrade'); ui.renderShop(); ui.updateStats();
+                    state.player.lune -= cost;
+                    state.shop[itemId]++;
+                    game.playSound('upgrade');
+                    ui.renderShop();
+                    ui.updateStats();
                 }
             },
 
@@ -754,25 +879,41 @@
                 const saved = localStorage.getItem('ThangIdle');
                 if(saved) {
                     const loaded = JSON.parse(saved);
-                    if(!loaded.world || loaded.world.length !== WORLD_DATA.length) loaded.world = WORLD_DATA.map(w => ({ id: w.id, unlocked: false, lastCollect: 0 }));
-                    if(!loaded.npcs || loaded.npcs.length !== NPC_DATA.length) loaded.npcs = NPC_DATA.map(n => ({ id: n.id, level: 1 }));
-                    if(!loaded.autoPlay) loaded.autoPlay = { unlocked: false, level: 1, lastMove: 0 };
+                    if(!loaded.world || loaded.world.length !== WORLD_DATA.length) {
+                        loaded.world = WORLD_DATA.map(w => ({ id: w.id, unlocked: false, lastCollect: 0 }));
+                    }
+                    if(!loaded.npcs || loaded.npcs.length !== NPC_DATA.length) {
+                        loaded.npcs = NPC_DATA.map(n => ({ id: n.id, level: 1 }));
+                    }
                     state = { ...state, ...loaded };
                 }
             },
-            hardReset: function() { if(confirm("Wipe all progress?")) { localStorage.removeItem('ThangIdle'); location.reload(); } },
-            playSound: function(id) { if(state.settings.sound) Synth.play(id); },
+            hardReset: function() {
+                if(confirm("Wipe all progress?")) {
+                    localStorage.removeItem('ThangIdle');
+                    location.reload();
+                }
+            },
+            playSound: function(id) {
+                if(!state.settings.sound) return;
+                Synth.play(id);
+            },
             toggleMusic: function() {
                 state.settings.music = !state.settings.music;
                 const bgm = document.getElementById('bgm');
                 state.settings.music ? bgm.play() : bgm.pause();
                 document.getElementById('btn-music').classList.toggle('active');
             },
-            toggleSound: function() { state.settings.sound = !state.settings.sound; document.getElementById('btn-sound').classList.toggle('active'); }
+            toggleSound: function() {
+                state.settings.sound = !state.settings.sound;
+                document.getElementById('btn-sound').classList.toggle('active');
+            }
         };
 
         const grid = {
-            width: 8, height: 8, cells: [], selected: null, dragStart: null, hintTimer: null,
+            width: 8, height: 8, cells: [],
+            selected: null, dragStart: null, hintTimer: null,
+
             init: function() {
                 this.el = document.getElementById('grid-container');
                 this.createBoard();
@@ -781,80 +922,138 @@
                 window.addEventListener('mouseup', e => this.handleInputEnd(e));
                 window.addEventListener('touchend', e => this.handleInputEnd(e));
             },
+
             createBoard: function() {
-                let safety=0; do {
-                    this.cells=[]; this.el.innerHTML='';
-                    for(let y=0;y<this.height;y++){
-                        let row=[]; for(let x=0;x<this.width;x++){
-                            let t; do{t=Math.floor(Math.random()*8);}while((x>=2&&row[x-1].type===t&&row[x-2].type===t)||(y>=2&&this.cells[y-1][x].type===t&&this.cells[y-2][x].type===t));
-                            let d=document.createElement('div'); d.className=`tile npc-${t}`; d.dataset.x=x; d.dataset.y=y;
-                            let i=document.createElement('img'); i.src=ASSETS.npcs[t];
-                            let g=document.createElement('div'); g.className='npc-gem'; g.innerHTML=ASSETS.gems[t];
-                            d.append(i,g); this.el.append(d); row.push({type:t,el:d,img:i,gem:g});
-                        } this.cells.push(row);
-                    } safety++;
-                } while(!this.hasPossibleMove() && safety<50);
+                let safety = 0;
+                do {
+                    this.cells = [];
+                    this.el.innerHTML = '';
+                    for(let y=0; y<this.height; y++) {
+                        let row = [];
+                        for(let x=0; x<this.width; x++) {
+                            let type;
+                            do { type = Math.floor(Math.random() * 8); } 
+                            while( (x>=2 && row[x-1].type === type && row[x-2].type === type) || (y>=2 && this.cells[y-1][x].type === type && this.cells[y-2][x].type === type) );
+
+                            const tile = document.createElement('div');
+                            tile.className = `tile npc-${type}`;
+                            tile.dataset.x = x; tile.dataset.y = y;
+                            
+                            const img = document.createElement('img');
+                            img.src = ASSETS.npcs[type];
+                            img.onerror = function() { this.style.backgroundColor = ['#f00','#00f','#0f0','#808','#f80','#0ff','#ff0','#f08'][type]; this.src=''; }
+                            
+                            const gem = document.createElement('div');
+                            gem.className = 'npc-gem';
+                            gem.innerHTML = ASSETS.gems[type];
+
+                            tile.appendChild(img);
+                            tile.appendChild(gem);
+                            this.el.appendChild(tile);
+                            row.push({ type: type, el: tile, img: img, gem: gem });
+                        }
+                        this.cells.push(row);
+                    }
+                    safety++;
+                } while (!this.hasPossibleMove() && safety < 50);
+
                 this.resetHintTimer();
             },
-            hasPossibleMove: function() {
-                let temp = this.cells.map(r=>r.map(c=>c.type));
-                // Helper to check if swapping grid[r][c] creates a match
-                // A robust AI check: iterate all swaps, check for match-3
-                for(let r=0;r<this.height;r++){
-                    for(let c=0;c<this.width;c++){
-                        if(c<this.width-1) { // Right
-                            let t=temp[r][c]; temp[r][c]=temp[r][c+1]; temp[r][c+1]=t;
-                            if(this.checkMatch(temp)) return {x1:c,y1:r,x2:c+1,y2:r};
-                            t=temp[r][c]; temp[r][c]=temp[r][c+1]; temp[r][c+1]=t;
-                        }
-                        if(r<this.height-1) { // Down
-                            let t=temp[r][c]; temp[r][c]=temp[r+1][c]; temp[r+1][c]=t;
-                            if(this.checkMatch(temp)) return {x1:c,y1:r,x2:c,y2:r+1};
-                            t=temp[r][c]; temp[r][c]=temp[r+1][c]; temp[r+1][c]=t;
-                        }
-                    }
-                }
-                return false;
-            },
+
+            // SMART FIND BEST MOVE (Scanning all possible swaps for highest score)
             findBestMove: function() {
-                // Used by AutoPlay: find best scoring move (5 > 4 > 3)
-                let bestMove = null; let bestScore = 0;
-                let temp = this.cells.map(r=>r.map(c=>c.type));
-                for(let r=0;r<this.height;r++){
-                    for(let c=0;c<this.width;c++){
-                        // Right
-                        if(c<this.width-1) {
-                            let t=temp[r][c]; temp[r][c]=temp[r][c+1]; temp[r][c+1]=t;
-                            let s = this.getMatchScore(temp, r, c) + this.getMatchScore(temp, r, c+1);
-                            if(s > bestScore) { bestScore = s; bestMove = {x1:c,y1:r,x2:c+1,y2:r}; }
-                            t=temp[r][c]; temp[r][c]=temp[r][c+1]; temp[r][c+1]=t;
-                        }
-                        // Down
-                        if(r<this.height-1) {
-                            let t=temp[r][c]; temp[r][c]=temp[r+1][c]; temp[r+1][c]=t;
-                            let s = this.getMatchScore(temp, r, c) + this.getMatchScore(temp, r+1, c);
-                            if(s > bestScore) { bestScore = s; bestMove = {x1:c,y1:r,x2:c,y2:r+1}; }
-                            t=temp[r][c]; temp[r][c]=temp[r+1][c]; temp[r+1][c]=t;
+                let bestMove = null;
+                let bestScore = 0;
+                
+                // Helper to get score of a potential match
+                const getMatchScore = (grid, r, c) => {
+                    let type = grid[r][c];
+                    if (type === -1) return 0;
+                    
+                    // Check Horiz
+                    let h = 1;
+                    let i = 1; while (c - i >= 0 && grid[r][c - i] === type) { h++; i++; }
+                    i = 1; while (c + i < this.width && grid[r][c + i] === type) { h++; i++; }
+                    
+                    // Check Vert
+                    let v = 1;
+                    i = 1; while (r - i >= 0 && grid[r - i][c] === type) { v++; i++; }
+                    i = 1; while (r + i < this.height && grid[r + i][c] === type) { v++; i++; }
+                    
+                    let score = 0;
+                    if(h >= 3) score += (h === 3 ? 1 : (h === 4 ? 2 : 3));
+                    if(v >= 3) score += (v === 3 ? 1 : (v === 4 ? 2 : 3));
+                    return score;
+                };
+
+                // Iterate Horizontal Swaps
+                for(let r=0; r<this.height; r++) {
+                    for(let c=0; c<this.width-1; c++) {
+                        // Simulate swap r,c <-> r,c+1
+                        let t1 = this.cells[r][c].type;
+                        let t2 = this.cells[r][c+1].type;
+                        
+                        // Create temp grid representation
+                        let tempGrid = this.cells.map(row => row.map(cell => cell.type));
+                        
+                        // Perform Swap in temp
+                        tempGrid[r][c] = t2;
+                        tempGrid[r][c+1] = t1;
+                        
+                        // Calculate Score
+                        let score = 0;
+                        // Check scan around affected area (r, c) and (r, c+1)
+                        // Simplifying: scan line
+                        score += getMatchScore(tempGrid, r, c);
+                        score += getMatchScore(tempGrid, r, c+1);
+                        
+                        if(score > bestScore) {
+                            bestScore = score;
+                            bestMove = {x1:c, y1:r, x2:c+1, y2:r};
                         }
                     }
                 }
+
+                // Iterate Vertical Swaps
+                for(let r=0; r<this.height-1; r++) {
+                    for(let c=0; c<this.width; c++) {
+                         // Simulate swap r,c <-> r+1,c
+                        let t1 = this.cells[r][c].type;
+                        let t2 = this.cells[r+1][c].type;
+                        
+                        let tempGrid = this.cells.map(row => row.map(cell => cell.type));
+                        
+                        tempGrid[r][c] = t2;
+                        tempGrid[r+1][c] = t1;
+                        
+                        let score = 0;
+                        score += getMatchScore(tempGrid, r, c);
+                        score += getMatchScore(tempGrid, r+1, c);
+                        
+                        if(score > bestScore) {
+                            bestScore = score;
+                            bestMove = {x1:c, y1:r, x2:c, y2:r+1};
+                        }
+                    }
+                }
+
                 return bestMove;
             },
-            checkMatch: function(g) {
-                for(let r=0;r<this.height;r++){ for(let c=0;c<this.width-2;c++){ let t=g[r][c]; if(t!==-1 && g[r][c+1]===t && g[r][c+2]===t) return true; } }
-                for(let c=0;c<this.width;c++){ for(let r=0;r<this.height-2;r++){ let t=g[r][c]; if(t!==-1 && g[r+1][c]===t && g[r+2][c]===t) return true; } }
-                return false;
+            
+            // Basic check for existence (for reshuffle logic)
+            hasPossibleMove: function() {
+                // Re-use findBestMove for simplicity, if it returns non-null, we have a move
+                return this.findBestMove() !== null;
             },
-            getMatchScore: function(g, r, c) {
-                let t = g[r][c]; if(t===-1) return 0;
-                let h=1; let i=1; while(c-i>=0 && g[r][c-i]===t) {h++; i++;} i=1; while(c+i<this.width && g[r][c+i]===t) {h++; i++;}
-                let v=1; i=1; while(r-i>=0 && g[r-i][c]===t) {v++; i++;} i=1; while(r+i<this.height && g[r+i][c]===t) {v++; i++;}
-                if(h<3) h=0; if(v<3) v=0;
-                return Math.max(h, v);
+
+            resetHintTimer: function() {
+                if(this.hintTimer) clearTimeout(this.hintTimer);
+                document.querySelectorAll('.hint').forEach(e => e.classList.remove('hint'));
+                this.hintTimer = setTimeout(() => this.showHint(), 10000); 
             },
-            resetHintTimer: function(){ clearTimeout(this.hintTimer); document.querySelectorAll('.hint').forEach(e=>e.classList.remove('hint')); this.hintTimer=setTimeout(()=>this.showHint(), 10000); },
-            showHint: function(){
-                let move = this.hasPossibleMove();
+
+            showHint: function() {
+                const move = this.findBestMove();
                 if(move) {
                     this.cells[move.y1][move.x1].el.classList.add('hint');
                     this.cells[move.y2][move.x2].el.classList.add('hint');
@@ -862,107 +1061,178 @@
                     this.createBoard(); 
                 }
             },
+
             handleInputStart: function(e) {
-                const target = e.target.closest('.tile'); if(!target) return; 
-                lastInteraction = Date.now(); this.resetHintTimer(); 
+                const target = e.target.closest('.tile');
+                if(!target) return;
+                lastInteraction = Date.now(); 
+                this.resetHintTimer(); 
                 e.preventDefault(); 
-                const x = parseInt(target.dataset.x); const y = parseInt(target.dataset.y);
+                const x = parseInt(target.dataset.x);
+                const y = parseInt(target.dataset.y);
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
                 this.dragStart = { x, y, cx: clientX, cy: clientY };
                 this.handleTap(x, y); 
             },
+
             handleInputEnd: function(e) {
                 if(!this.dragStart) return;
+                
                 const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
                 const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-                const dx = clientX - this.dragStart.cx; const dy = clientY - this.dragStart.cy;
-                if(Math.max(Math.abs(dx), Math.abs(dy)) > 30) {
-                    let tx = this.dragStart.x + (Math.abs(dx) > Math.abs(dy) ? (dx>0?1:-1) : 0);
-                    let ty = this.dragStart.y + (Math.abs(dy) >= Math.abs(dx) ? (dy>0?1:-1) : 0);
-                    if(tx>=0 && tx<this.width && ty>=0 && ty<this.height) this.attemptSwap(this.dragStart.x, this.dragStart.y, tx, ty);
+
+                const dx = clientX - this.dragStart.cx;
+                const dy = clientY - this.dragStart.cy;
+                const absX = Math.abs(dx);
+                const absY = Math.abs(dy);
+
+                if(Math.max(absX, absY) > 30) {
+                    let tx = this.dragStart.x;
+                    let ty = this.dragStart.y;
+                    if(absX > absY) { tx += (dx > 0 ? 1 : -1); } 
+                    else { ty += (dy > 0 ? 1 : -1); } 
+
+                    if(tx >= 0 && tx < this.width && ty >= 0 && ty < this.height) {
+                        this.attemptSwap(this.dragStart.x, this.dragStart.y, tx, ty);
+                        this.selected = null;
+                        document.querySelectorAll('.tile.selected').forEach(el=>el.classList.remove('selected'));
+                    }
                 }
                 this.dragStart = null;
             },
+
             handleTap: function(x, y) {
-                if(!this.selected) { this.selected = {x, y}; this.cells[y][x].el.classList.add('selected'); }
-                else {
-                    const sx = this.selected.x, sy = this.selected.y;
+                this.resetHintTimer();
+                if(!this.selected) {
+                    this.selected = {x, y};
+                    this.cells[y][x].el.classList.add('selected');
+                } else {
+                    const sx = this.selected.x;
+                    const sy = this.selected.y;
                     this.cells[sy][sx].el.classList.remove('selected');
                     this.selected = null;
-                    if(Math.abs(sx-x) + Math.abs(sy-y) === 1) this.attemptSwap(sx, sy, x, y);
-                    else if(sx!==x || sy!==y) { this.selected = {x, y}; this.cells[y][x].el.classList.add('selected'); }
+
+                    if(Math.abs(sx - x) + Math.abs(sy - y) === 1) {
+                        this.attemptSwap(sx, sy, x, y);
+                    } else if (sx !== x || sy !== y) {
+                        this.selected = {x, y};
+                        this.cells[y][x].el.classList.add('selected');
+                    }
                 }
             },
+
             attemptSwap: async function(x1, y1, x2, y2) {
                 lastInteraction = Date.now();
                 game.playSound('move');
-                let t = this.cells[y1][x1].type; this.cells[y1][x1].type = this.cells[y2][x2].type; this.cells[y2][x2].type = t;
+                let t = this.cells[y1][x1].type;
+                this.cells[y1][x1].type = this.cells[y2][x2].type;
+                this.cells[y2][x2].type = t;
                 this.updateVisuals();
-                const matches = this.findMatches();
-                if(matches.length > 0) await this.processMatches(matches);
-                else {
-                    t = this.cells[y1][x1].type; this.cells[y1][x1].type = this.cells[y2][x2].type; this.cells[y2][x2].type = t;
-                    setTimeout(() => this.updateVisuals(), 100);
-                    game.playSound('click');
+
+                // Check logic
+                let tempGrid = this.cells.map(r => r.map(c => c.type));
+                
+                const check = (r, c) => {
+                    let t = tempGrid[r][c];
+                    if(t === -1) return false;
+                    // Horiz
+                    let h = 1;
+                    let i = 1; while(c-i>=0 && tempGrid[r][c-i]===t) {h++; i++;}
+                    i = 1; while(c+i<this.width && tempGrid[r][c+i]===t) {h++; i++;}
+                    // Vert
+                    let v = 1;
+                    i = 1; while(r-i>=0 && tempGrid[r-i][c]===t) {v++; i++;}
+                    i = 1; while(r+i<this.height && tempGrid[r+i][c]===t) {v++; i++;}
+                    return h>=3 || v>=3;
+                };
+
+                if(check(y1, x1) || check(y2, x2)) {
+                     const matches = this.findMatches();
+                     await this.processMatches(matches);
+                } else {
+                    t = this.cells[y1][x1].type;
+                    this.cells[y1][x1].type = this.cells[y2][x2].type;
+                    this.cells[y2][x2].type = t;
+                    setTimeout(() => this.updateVisuals(), 100); 
+                    game.playSound('click'); 
                 }
             },
+
             findMatches: function() {
                 let matches = [];
-                const check = (r,c,dr,dc) => {
-                    let t = this.cells[r][c].type; if(t===-1) return false;
-                    if(r+2*dr < this.height && c+2*dc < this.width && 
-                       this.cells[r+dr][c+dc].type===t && this.cells[r+2*dr][c+2*dc].type===t) return true;
-                    return false;
-                };
-                for(let r=0;r<this.height;r++){ for(let c=0;c<this.width;c++){
-                    if(check(r,c,0,1)) {
-                        let m=[{x:c,y:r},{x:c+1,y:r},{x:c+2,y:r}];
-                        let k=c+3; while(k<this.width && this.cells[r][k].type===this.cells[r][c].type) {m.push({x:k,y:r}); k++;}
-                        matches.push(m); c=k-1;
+                for(let r=0; r<this.height; r++) {
+                    for(let c=0; c<this.width-2; c++) {
+                        let t = this.cells[r][c].type;
+                        if(t!==-1 && this.cells[r][c+1].type === t && this.cells[r][c+2].type === t) {
+                            let m = [{x:c,y:r},{x:c+1,y:r},{x:c+2,y:r}];
+                            let k = c+3; while(k<this.width && this.cells[r][k].type===t) { m.push({x:k,y:r}); k++; }
+                            matches.push(m); c=k-1;
+                        }
                     }
-                }}
-                for(let c=0;c<this.width;c++){ for(let r=0;r<this.height;r++){
-                    if(check(r,c,1,0)) {
-                        let m=[{x:c,y:r},{x:c,y:r+1},{x:c,y:r+2}];
-                        let k=r+3; while(k<this.height && this.cells[k][c].type===this.cells[r][c].type) {m.push({x:c,y:k}); k++;}
-                        matches.push(m); r=k-1;
+                }
+                for(let c=0; c<this.width; c++) {
+                    for(let r=0; r<this.height-2; r++) {
+                        let t = this.cells[r][c].type;
+                        if(t!==-1 && this.cells[r+1][c].type === t && this.cells[r+2][c].type === t) {
+                            let m = [{x:c,y:r},{x:c,y:r+1},{x:c,y:r+2}];
+                            let k = r+3; while(k<this.height && this.cells[k][c].type===t) { m.push({x:c,y:k}); k++; }
+                            matches.push(m); r=k-1;
+                        }
                     }
-                }}
+                }
                 return matches;
             },
+
             processMatches: async function(matches) {
-                let unique = new Set(); let maxLen=0;
-                matches.forEach(m => { if(m.length>maxLen) maxLen=m.length; m.forEach(p => unique.add(`${p.x},${p.y}`)); });
-                if(unique.size === 0) return;
+                let unique = new Set();
+                let maxLen = 0;
+                matches.forEach(m => {
+                    if(m.length > maxLen) maxLen = m.length;
+                    m.forEach(p => unique.add(`${p.x},${p.y}`));
+                });
+
+                let count = unique.size;
+                let mult = (maxLen>=5?2.0:(maxLen===4?1.5:1.0));
+                let effect = (maxLen>=5?'match5':(maxLen===4?'match4':'match3'));
+                game.playSound(effect);
                 
+                // Get type of first tile for NPC bonus logic
                 let sampleKey = Array.from(unique)[0];
                 let [sx,sy] = sampleKey.split(',').map(Number);
                 let type = this.cells[sy][sx].type;
                 let npc = (type !== -1 && state.npcs && state.npcs[type]) ? state.npcs[type] : {level:1};
                 let npcData = NPC_DATA[type] || {rarity:1};
 
-                let count = unique.size;
-                let mult = (maxLen>=5?2.0:(maxLen===4?1.5:1.0));
-                game.playSound(maxLen>=5?'match5':(maxLen===4?'match4':'match3'));
-                
-                // XP FORMULA
-                let rawXP = (5 * count * (maxLen>=5?3:(maxLen===4?2:1))) * npc.level;
-                game.addXP(rawXP);
-
-                // DIEN FORMULA: 100 * Level * (Rarity * 2) * Count * Mult
+                // NEW DIEN FORMULA: 100 * Level * (Rarity * 2) * Count * Mult
                 let dienGain = 100 * npc.level * (npcData.rarity * 2) * count * mult;
+                
+                // NEW LUNE FORMULA: Level * Rarity (Guaranteed)
+                let luneGain = npc.level * npcData.rarity;
+
                 game.addCurrency('dien', dienGain);
                 
-                // LUNE FORMULA: Level * Rarity
-                let luneGain = npc.level * npcData.rarity;
+                // Only add Lune if gain > 0
                 if(luneGain > 0) {
                     game.addCurrency('lune', luneGain);
                     ui.notify(`+${luneGain} Lune`, "cyan");
                 }
+                
+                // XP Logic with NPC Multiplier
+                let npcMult = (npc.level * 0.5 + 0.5) * (npcData.rarity * 0.5 + 0.5);
+                
+                // Ensure multiplier is at least 1
+                if (npcMult < 1) npcMult = 1;
+                
+                let rawXP = (5 * count * (maxLen>=5?3:(maxLen===4?2:1))) * npcMult;
+                game.addXP(rawXP);
 
-                unique.forEach(s => { let [x,y] = s.split(',').map(Number); this.cells[y][x].type = -1; });
-                this.updateVisuals();
+                unique.forEach(s => {
+                    let [x,y] = s.split(',').map(Number);
+                    this.cells[y][x].type = -1; 
+                });
+                
                 await new Promise(r => setTimeout(r, 150));
                 for(let x=0; x<this.width; x++) {
                     let ey = this.height-1;
@@ -975,18 +1245,31 @@
                     while(ey >= 0) { this.cells[ey][x].type = Math.floor(Math.random()*8); ey--; }
                 }
                 this.updateVisuals();
+
                 await new Promise(r => setTimeout(r, 200));
                 const next = this.findMatches();
-                if(next.length > 0) await this.processMatches(next);
-                else { if(!this.hasPossibleMove()) { ui.notify("No moves! Shuffling...", "cyan"); this.createBoard(); } }
+                if(next.length > 0) {
+                    await this.processMatches(next);
+                } else {
+                    if(!this.hasPossibleMove()) {
+                        ui.notify("No moves! Shuffling...", "cyan");
+                        await new Promise(r => setTimeout(r, 1000));
+                        this.createBoard();
+                    }
+                }
+                this.resetHintTimer();
             },
+
             updateVisuals: function() {
                 for(let y=0; y<this.height; y++) {
                     for(let x=0; x<this.width; x++) {
                         const t = this.cells[y][x].type;
-                        if(t === -1) { this.cells[y][x].img.style.opacity = '0'; this.cells[y][x].gem.style.opacity = '0'; } 
-                        else {
-                            this.cells[y][x].img.style.opacity = '1'; this.cells[y][x].gem.style.opacity = '1';
+                        if(t === -1) {
+                             this.cells[y][x].img.style.opacity = '0'; 
+                             this.cells[y][x].gem.style.opacity = '0';
+                        } else {
+                            this.cells[y][x].img.style.opacity = '1';
+                            this.cells[y][x].gem.style.opacity = '1';
                             this.cells[y][x].el.className = `tile npc-${t}`;
                             this.cells[y][x].img.src = ASSETS.npcs[t];
                             this.cells[y][x].gem.innerHTML = ASSETS.gems[t];
@@ -1022,6 +1305,7 @@
                 document.getElementById('ui-max-points').innerText = MAX_KI_POINTS;
                 document.getElementById('ui-dien').innerText = Math.floor(state.player.dien).toLocaleString();
                 document.getElementById('ui-lune').innerText = state.player.lune.toLocaleString();
+                
                 if(incomeOverride !== undefined) document.getElementById('ui-income').innerText = Math.floor(incomeOverride).toLocaleString();
 
                 const hasUpgrade = state.rings.some((r, i) => {
@@ -1043,27 +1327,41 @@
                 const k = state.player.ki;
                 const panelPoints = document.getElementById('panel-ki-points');
                 if(panelPoints) panelPoints.innerText = k.unallocated;
+
                 document.getElementById('val-atk').innerText = `+${Math.floor(k.attack*10)}%`;
                 document.getElementById('bar-atk').style.width = (k.attack / MAX_KI_POINTS * 100) + '%';
+                
                 document.getElementById('val-def').innerText = `+${Math.floor(k.defence*10)}%`;
                 document.getElementById('bar-def').style.width = (k.defence / MAX_KI_POINTS * 100) + '%';
+                
                 document.getElementById('val-ki').innerText = `-${Math.floor(100-(100*Math.pow(0.9,k.kiStat)))}%`;
                 document.getElementById('bar-ki').style.width = (k.kiStat / MAX_KI_POINTS * 100) + '%';
             },
             renderNPCs: function(updateOnly = false) {
                 const list = document.getElementById('npc-list');
                 if(!updateOnly) list.innerHTML = '';
+
                 state.npcs.forEach((npc, idx) => {
                     const data = NPC_DATA[idx];
                     const cost = game.getNPCUpgradeCost(idx);
                     const canAfford = state.player.dien >= cost.dien && state.player.lune >= cost.lune;
                     const isMax = npc.level >= 230;
+
                     if(updateOnly) {
                         const btn = document.getElementById(`btn-npc-${idx}`);
-                        if(btn) { btn.disabled = !canAfford || isMax; btn.innerText = isMax ? "MAXED" : "UPGRADE"; }
+                        if(btn) {
+                            btn.disabled = !canAfford || isMax;
+                            btn.innerText = isMax ? "MAXED" : "UPGRADE";
+                        }
                         return;
                     }
+
                     let costTxt = isMax ? "Max Level" : `${Math.floor(cost.dien).toLocaleString()} D + ${Math.floor(cost.lune).toLocaleString()} L`;
+                    
+                    // Calculate display multiplier
+                    let effectMult = (npc.level * 0.5 + 0.5) * (data.rarity * 0.5 + 0.5);
+                    if (effectMult < 1) effectMult = 1;
+
                     const div = document.createElement('div');
                     div.className = 'rpg-card unlocked';
                     div.innerHTML = `
@@ -1072,7 +1370,7 @@
                             <div style="color:var(--border-gold); font-weight:bold;">${data.name}</div>
                             <div style="font-size:0.8em; color:#888;">Rarity: ${data.rarity} | Level: ${npc.level}</div>
                             <div style="font-size:0.8em; color:var(--dien-gold);">${costTxt}</div>
-                            <div style="font-size:0.7em; color:cyan;">Match: ${100 * npc.level * (data.rarity*2)} D + ${npc.level * data.rarity} L</div>
+                            <div style="font-size:0.7em; color:cyan;">Effect: ${effectMult.toFixed(1)}x Grid XP</div>
                         </div>
                         <button id="btn-npc-${idx}" class="rpg-btn" ${canAfford && !isMax ?'':'disabled'} onclick="game.upgradeNPC(${idx})">${isMax?'MAXED':'UPGRADE'}</button>
                     `;
@@ -1220,7 +1518,6 @@
             }
         };
 
-        // SAFETY
         window.game = game;
         window.onload = function() { game.init(); };
     </script>

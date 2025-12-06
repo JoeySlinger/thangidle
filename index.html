@@ -570,9 +570,9 @@
                 
                 if (levelMult === Infinity || rarityMult === Infinity) return { dien: Infinity, lune: Infinity };
                 
-                // 20x Easier Logic: Divide total cost by 20
-                let dienCost = (10000 * rarityMult * levelMult) / 20;
-                let luneCost = (1 * rarityMult * levelMult) / 20;
+                // 100x Easier Logic: Divide total cost by 100 (Base Cost ~100 Dien)
+                let dienCost = (10000 * rarityMult * levelMult) / 100;
+                let luneCost = (1 * rarityMult * levelMult) / 100;
                 
                 return { dien: Math.floor(dienCost), lune: Math.ceil(luneCost) };
             },
@@ -589,8 +589,8 @@
                     state.player.lune -= cost.lune;
                     npc.level++;
 
-                    // REWARD: Lune = Rarity
-                    let luneReward = data.rarity;
+                    // REWARD: Lune = Rarity * 4 (Doubled from previous x2)
+                    let luneReward = data.rarity * 4;
                     this.addCurrency('lune', luneReward);
 
                     game.playSound('upgrade');
@@ -1002,15 +1002,26 @@
                 let sampleKey = Array.from(unique)[0];
                 let [sx,sy] = sampleKey.split(',').map(Number);
                 let type = this.cells[sy][sx].type;
-                let npcLevel = (type !== -1 && state.npcs && state.npcs[type]) ? state.npcs[type].level : 1;
+                let npc = (type !== -1 && state.npcs && state.npcs[type]) ? state.npcs[type] : {level:1};
+                let npcData = NPC_DATA[type] || {rarity:1};
 
-                let rawXP = (5 * count * (maxLen>=5?3:(maxLen===4?2:1))) * npcLevel;
-                game.addCurrency('dien', 10 * count * mult);
+                // NEW DIEN FORMULA: 100 * Level * (Rarity * 2) * Count * Mult
+                let dienGain = 100 * npc.level * (npcData.rarity * 2) * count * mult;
+                
+                // NEW LUNE FORMULA: Level * Rarity (Guaranteed)
+                let luneGain = npc.level * npcData.rarity;
+
+                game.addCurrency('dien', dienGain);
+                
+                // Only add Lune if gain > 0
+                if(luneGain > 0) {
+                    game.addCurrency('lune', luneGain);
+                    ui.notify(`+${luneGain} Lune`, "cyan");
+                }
+                
+                // XP Logic
+                let rawXP = (5 * count * (maxLen>=5?3:(maxLen===4?2:1)));
                 game.addXP(rawXP);
-
-                let chance = (maxLen>=5?0.015:(maxLen===4?0.005:0.001));
-                if(state.shop.dropScroll > 0) chance *= (1 + SHOP_ITEMS[1].bonuses[state.shop.dropScroll-1]);
-                if(Math.random() < chance) { game.addCurrency('lune', 1); ui.notify("Lune Dropped!"); }
 
                 unique.forEach(s => {
                     let [x,y] = s.split(',').map(Number);
@@ -1150,7 +1161,7 @@
                             <div style="color:var(--border-gold); font-weight:bold;">${data.name}</div>
                             <div style="font-size:0.8em; color:#888;">Rarity: ${data.rarity} | Level: ${npc.level}</div>
                             <div style="font-size:0.8em; color:var(--dien-gold);">${costTxt}</div>
-                            <div style="font-size:0.7em; color:cyan;">Effect: ${npc.level}x Grid XP</div>
+                            <div style="font-size:0.7em; color:cyan;">Effect: Match Rewards & XP</div>
                         </div>
                         <button id="btn-npc-${idx}" class="rpg-btn" ${canAfford && !isMax ?'':'disabled'} onclick="game.upgradeNPC(${idx})">${isMax?'MAXED':'UPGRADE'}</button>
                     `;
